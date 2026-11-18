@@ -1925,7 +1925,14 @@ function importData(inp) {
       showDialog('Frage', 'Backup einspielen?\n\nVorhandene Daten mit gleichem Datum werden überschrieben.', [
         { text: 'Abbrechen' },
         { text: 'OK', primary: true, action: () => {
-          Object.entries(j.data).forEach(([k, v]) => { if (k.startsWith('essenlog_')) localStorage.setItem(k, v); });
+          Object.entries(j.data).forEach(([k, v]) => {
+            if (!k.startsWith('essenlog_')) return;
+            if (k === 'essenlog_custom_foods') {
+              try { const old = JSON.parse(localStorage.getItem(k) || '[]'), nw = JSON.parse(v), ids = new Set(nw.map(x => x.id));
+                v = JSON.stringify(old.filter(x => !ids.has(x.id)).concat(nw)); } catch (e) {}
+            }
+            localStorage.setItem(k, v);
+          });
           location.reload();
         } }
       ]);
