@@ -254,7 +254,7 @@
     <button class="btn btn-grey" onclick="closeModal()">ABBRECHEN</button>
   </div>
   <div class="search-wrap">
-    <input type="text" id="foodSearch" class="search-input" placeholder="Suche (z.B. Apfel)..." oninput="searchFood(this.value)" autocomplete="off">
+    <input type="text" id="foodSearch" class="search-input" placeholder="Suche (z.B. Apfel, haferflocken)..." oninput="searchFood(this.value)" autocomplete="off">
     <button class="btn btn-outline" style="width:100%; font-size:12px;" onclick="openManual(null)">+ EIGENES PRODUKT EINGEBEN</button>
   </div>
   <div class="list" id="searchResults"></div>
@@ -275,12 +275,67 @@
       <button class="btn" style="width:100%;" id="amtOk" onclick="confirmAmount()">HINZUFÜGEN</button>
     </div>
     <div id="manualForm" class="hidden">
-      <div class="input-group"><label>PRODUKTNAME</label><input type="text" id="mName"></div>
-      <div class="input-group"><label>KALORIEN PRO 100 G (KCAL)</label><input type="text" inputmode="decimal" id="mKcal"></div>
-      <div class="input-group"><label>EIWEISS PRO 100 G (G)</label><input type="text" inputmode="decimal" id="mProt"></div>
-      <div class="input-group"><label>FETT PRO 100 G (G, OPTIONAL)</label><input type="text" inputmode="decimal" id="mFat"></div>
-      <div class="input-group"><label>KOHLENHYDRATE PRO 100 G (G, OPTIONAL)</label><input type="text" inputmode="decimal" id="mCarbIn"></div>
-      <button class="btn" style="width:100%;" onclick="saveManual()">SPEICHERN</button>
+      <div class="input-group"><label>PRODUKTNAME (PFLICHT)</label><input type="text" id="mName" placeholder="z.B. Buchweizen (geschält)"></div>
+      
+      <div style="display:flex;gap:10px;margin-bottom:12px;">
+        <div class="input-group" style="flex:1;margin-bottom:0;"><label>KCAL / 100G</label><input type="number" step="0.1" id="m_kcal" placeholder="z.B. 340"></div>
+        <div class="input-group" style="flex:1;margin-bottom:0;"><label>EIWEISS / 100G</label><input type="number" step="0.01" id="m_prot" placeholder="z.B. 13.2"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:12px;">
+        <div class="input-group" style="flex:1;margin-bottom:0;"><label>FETT / 100G</label><input type="number" step="0.01" id="m_fat" placeholder="z.B. 6.6"></div>
+        <div class="input-group" style="flex:1;margin-bottom:0;"><label>KOHLENHYDR. / 100G</label><input type="number" step="0.01" id="m_carb" placeholder="z.B. 53.3"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:15px;">
+        <div class="input-group" style="flex:1;margin-bottom:0;"><label>BALLASTSTOFFE / 100G</label><input type="number" step="0.01" id="m_fib" placeholder="z.B. 10.0"></div>
+      </div>
+
+      <details style="margin-bottom:15px;background:#f4f4f5;padding:10px;">
+        <summary class="eyebrow" style="cursor:pointer;font-weight:600;color:var(--ink);">VITAMINE (OPTIONAL)</summary>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+          <div class="input-group" style="margin:0;"><label>VIT A (µg)</label><input type="number" step="0.01" id="m_vitA"></div>
+          <div class="input-group" style="margin:0;"><label>VIT D (µg)</label><input type="number" step="0.01" id="m_vitD"></div>
+          <div class="input-group" style="margin:0;"><label>VIT E (mg)</label><input type="number" step="0.01" id="m_vitE"></div>
+          <div class="input-group" style="margin:0;"><label>VIT K (µg)</label><input type="number" step="0.01" id="m_vitK"></div>
+          <div class="input-group" style="margin:0;"><label>VIT B1 (mg)</label><input type="number" step="0.01" id="m_vitB1"></div>
+          <div class="input-group" style="margin:0;"><label>VIT B2 (mg)</label><input type="number" step="0.01" id="m_vitB2"></div>
+          <div class="input-group" style="margin:0;"><label>VIT B3 (mg)</label><input type="number" step="0.01" id="m_vitB3"></div>
+          <div class="input-group" style="margin:0;"><label>VIT B5 (mg)</label><input type="number" step="0.01" id="m_vitB5"></div>
+          <div class="input-group" style="margin:0;"><label>VIT B6 (mg)</label><input type="number" step="0.01" id="m_vitB6"></div>
+          <div class="input-group" style="margin:0;"><label>VIT B7 (µg)</label><input type="number" step="0.01" id="m_vitB7"></div>
+          <div class="input-group" style="margin:0;"><label>FOLAT (µg)</label><input type="number" step="0.01" id="m_folat"></div>
+          <div class="input-group" style="margin:0;"><label>VIT B12 (µg)</label><input type="number" step="0.01" id="m_vitB12"></div>
+          <div class="input-group" style="margin:0;"><label>VIT C (mg)</label><input type="number" step="0.01" id="m_vitC"></div>
+        </div>
+      </details>
+
+      <details style="margin-bottom:15px;background:#f4f4f5;padding:10px;">
+        <summary class="eyebrow" style="cursor:pointer;font-weight:600;color:var(--ink);">MINERALSTOFFE (OPTIONAL)</summary>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+          <div class="input-group" style="margin:0;"><label>NATRIUM (mg)</label><input type="number" step="0.01" id="m_natrium"></div>
+          <div class="input-group" style="margin:0;"><label>CHLORID (mg)</label><input type="number" step="0.01" id="m_chlorid"></div>
+          <div class="input-group" style="margin:0;"><label>KALIUM (mg)</label><input type="number" step="0.01" id="m_kalium"></div>
+          <div class="input-group" style="margin:0;"><label>CALCIUM (mg)</label><input type="number" step="0.01" id="m_calcium"></div>
+          <div class="input-group" style="margin:0;"><label>MAGNESIUM (mg)</label><input type="number" step="0.01" id="m_magnesium"></div>
+          <div class="input-group" style="margin:0;"><label>PHOSPHOR (mg)</label><input type="number" step="0.01" id="m_phosphor"></div>
+          <div class="input-group" style="margin:0;"><label>EISEN (mg)</label><input type="number" step="0.01" id="m_eisen"></div>
+          <div class="input-group" style="margin:0;"><label>ZINK (mg)</label><input type="number" step="0.01" id="m_zink"></div>
+          <div class="input-group" style="margin:0;"><label>JOD (µg)</label><input type="number" step="0.01" id="m_jod"></div>
+          <div class="input-group" style="margin:0;"><label>KUPFER (µg)</label><input type="number" step="0.01" id="m_kupfer"></div>
+          <div class="input-group" style="margin:0;"><label>MANGAN (µg)</label><input type="number" step="0.01" id="m_mangan"></div>
+          <div class="input-group" style="margin:0;"><label>FLUORID (µg)</label><input type="number" step="0.01" id="m_fluorid"></div>
+        </div>
+      </details>
+
+      <details style="margin-bottom:20px;background:#f4f4f5;padding:10px;">
+        <summary class="eyebrow" style="cursor:pointer;font-weight:600;color:var(--ink);">FETTSÄUREN (OPTIONAL)</summary>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+          <div class="input-group" style="margin:0;"><label>OMEGA-3 (g)</label><input type="number" step="0.001" id="m_omega3"></div>
+          <div class="input-group" style="margin:0;"><label>EPA (g)</label><input type="number" step="0.001" id="m_epa"></div>
+          <div class="input-group" style="margin:0;"><label>DHA (g)</label><input type="number" step="0.001" id="m_dha"></div>
+        </div>
+      </details>
+
+      <button class="btn" style="width:100%;" onclick="saveManual()">SPEICHERN &amp; HINZUFÜGEN</button>
     </div>
   </div>
 </div>
@@ -387,7 +442,6 @@ function buildIndex() {
 }
 
 fetch('./bls.json').then(r => r.json()).then(d => { blsData = d; buildIndex(); }).catch(() => console.warn('bls.json nicht geladen'));
-// Optionale Zusatzdaten (Open Food Facts Österreich / Supermärkte). Fehlen die Dateien, passiert nichts.
 ['products.json', 'supermarkt.json'].forEach(fn => fetch('./' + fn).then(r => r.ok ? r.json() : []).then(d => { if (Array.isArray(d) && d.length) { extraFoods = extraFoods.concat(d); buildIndex(); } }).catch(() => {}));
 
 /* ================= Berechnung ================= */
@@ -516,7 +570,7 @@ function saveSteps(val) {
   calcAll();
 }
 
-/* ================= Essen hinzufügen ================= */
+/* ================= Essen hinzufügen & SUCHE ================= */
 let lastResults = [];
 function openModal() {
   $('modal').classList.remove('hidden');
@@ -530,52 +584,139 @@ function closeModal() { $('modal').classList.add('hidden'); pickMode = null; }
 function foodRow(f, i) {
   return `<div class="food-item" data-i="${i}"><div class="name">${esc(f.name)}</div><div class="info">${f.kcal != null ? Math.round(f.kcal) : '?'} kcal / 100g</div></div>`;
 }
+
+// 1. Synonyme für die Suche
+const SYNONYMS = {
+  "nudeln": "teigwaren",
+  "pasta": "teigwaren",
+  "haehnchen": "huhn", // BLS nutzt oft "Huhn" oder "Hähnchen"
+  "hähnchen": "huhn",
+  "joghurt": "jogurt",
+  "kartoffel": "kartoffeln",
+  "ei": "hühnerei"
+};
+
+// 2. Spezielle Such-Normalisierung (Umlaute zu ae/oe/ue)
+function searchNorm(s) {
+  return String(s).toLowerCase()
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .replace(/[\s\-_.,()\/·]+/g, ''); // Entfernt alle Trennzeichen
+}
+
+// 3. Levenshtein-Distanz für Tippfehler
+function levenshtein(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // Ersetzen
+          matrix[i][j - 1] + 1,     // Einfügen
+          matrix[i - 1][j] + 1      // Löschen
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
 function searchFood(query) {
-  const box = $('searchResults'), q = norm(query.trim());
-  if (pickMode && !q) { box.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Suche ein ähnliches Lebensmittel aus der BLS (z.B. „Hafer Flocken“).</div>'; return; }
-  if (!q) {
+  const box = $('searchResults');
+  const rawQuery = query.trim().toLowerCase();
+  
+  if (pickMode && !rawQuery) { 
+    box.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Suche ein ähnliches Lebensmittel aus der BLS (z.B. „Hafer Flocken“).</div>'; 
+    return; 
+  }
+  
+  if (!rawQuery) {
     const rec = recentIds.map(id => foodMap.get(id)).filter(Boolean);
     lastResults = rec;
     box.innerHTML = rec.length ? '<div class="list-title">ZULETZT GEGESSEN</div>' + rec.map(foodRow).join('')
       : '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Tippe, um zu suchen...</div>';
     return;
   }
-  if (!blsData.length && !customFoods.length && !extraFoods.length) { box.innerHTML = '<div style="color:var(--pink);padding:20px;text-align:center;">Datenbank (bls.json) nicht geladen. Prüfe die Verbindung oder lege ein eigenes Produkt an.</div>'; return; }
-  if (q.length < 2) { box.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Mindestens 2 Buchstaben...</div>'; return; }
-  // Tolerante Suche: Leerzeichen/Bindestriche egal ("haferflocken" findet "Hafer Flocken").
-  // Findet kein Lebensmittel ALLE Wörter, zählen die Hauptwörter (ab 3 Buchstaben); Wörter ohne Treffer
-  // (z.B. Marken wie "dm") werden ignoriert und oben vermerkt, statt die ganze Suche zu blockieren.
-  const cmp = s => s.replace(/[\s\-.,()\/·]+/g, '');
-  const words = q.split(/\s+/).filter(Boolean);
+  
+  if (!blsData.length && !customFoods.length && !extraFoods.length) { 
+    box.innerHTML = '<div style="color:var(--pink);padding:20px;text-align:center;">Datenbank (bls.json) nicht geladen. Prüfe die Verbindung oder lege ein eigenes Produkt an.</div>'; 
+    return; 
+  }
+  
+  if (rawQuery.length < 2) { 
+    box.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Mindestens 2 Buchstaben...</div>'; 
+    return; 
+  }
+
+  // Wörter aufteilen und Synonyme anwenden
+  let words = rawQuery.split(/\s+/).filter(Boolean);
+  words = words.map(w => SYNONYMS[w] || w);
+  
+  // Normalisierte Suchwörter (z.B. "haehnchen")
+  const normWords = words.map(searchNorm);
+  
   const cands = [];
-  const add = (f, n) => cands.push({ f, n, nc: cmp(n) });
+  const add = (f, n) => cands.push({ f, n, nc: searchNorm(n) });
+  
   if (!pickMode) customFoods.forEach(f => add(f, norm(f.name)));
   blsIndex.forEach(o => { if (!pickMode || blsSet.has(o.f.id)) add(o.f, o.n); });
-  const hit = (c, w) => c.n.includes(w) || c.nc.includes(cmp(w));
-  const used = words.filter(w => cands.some(c => hit(c, w)));
-  const rank = (c, ws) => (c.n.startsWith(ws[0]) || c.nc.startsWith(cmp(ws[0])) ? 0 : 1) * 1000 + c.n.length;
-  let scored = cands.filter(c => used.length && used.every(w => hit(c, w))).map(c => ({ c, s: rank(c, used) }));
-  if (!scored.length && used.length) {
-    const core = used.filter(w => w.length >= 3), main = core.length ? core : used;
-    scored = cands.filter(c => main.every(w => hit(c, w)))
-      .map(c => ({ c, s: (used.length - used.filter(w => hit(c, w)).length) * 100000 + rank(c, main) }));
-    if (!scored.length) {   // sonst: alles, was mindestens ein Hauptwort enthält, die meisten Treffer zuerst
-      scored = cands.filter(c => main.some(w => hit(c, w)))
-        .map(c => ({ c, s: (main.length - main.filter(w => hit(c, w)).length) * 100000 + rank(c, main) }));
-    }
+
+  // Ranking-Funktion
+  const rank = (c, ws) => (c.nc.startsWith(ws[0]) ? 0 : 1) * 1000 + c.n.length;
+
+  let scored = [];
+
+  // Schritt 1: Exakte Suche (mit Leerzeichen-Toleranz und Synonymen)
+  scored = cands.filter(c => normWords.every(w => c.nc.includes(w)))
+    .map(c => ({ c, s: rank(c, normWords) }));
+
+  // Schritt 2: Fuzzy-Suche (Tippfehler / Levenshtein), falls nichts gefunden wurde
+  if (scored.length === 0) {
+    scored = cands.filter(c => {
+      return normWords.every(w => {
+        // Exakter Treffer im Namen?
+        if (c.nc.includes(w)) return true;
+        // Sonst: Tippfehler prüfen
+        const nameWords = c.nc.split(/[^a-z0-9]+/); 
+        for (let nw of nameWords) {
+          if (!nw) continue;
+          // Erlaube 1 Fehler bei Wörtern > 3 Buchstaben, 2 Fehler bei > 6
+          let maxDist = w.length > 6 ? 2 : (w.length > 3 ? 1 : 0);
+          if (levenshtein(w, nw) <= maxDist) return true;
+        }
+        return false;
+      });
+    }).map(c => ({ c, s: rank(c, normWords) + 5000 })); // Schlechteres Ranking als exakte Treffer
   }
+
+  // Schritt 3: Teiltreffer (wenn immer noch nichts da ist)
+  if (scored.length === 0) {
+    const core = normWords.filter(w => w.length >= 3);
+    const main = core.length ? core : normWords;
+    scored = cands.filter(c => main.some(w => c.nc.includes(w)))
+      .map(c => ({ c, s: (main.length - main.filter(w => c.nc.includes(w)).length) * 100000 + rank(c, main) }));
+  }
+
   scored.sort((a, b) => a.s - b.s);
   lastResults = scored.slice(0, 30).map(o => o.c.f);
-  const missing = scored.length ? words.filter(w => !hit(scored[0].c, w)) : [];
-  const note = missing.length ? `<div class="list-title">KEIN TREFFER FÜR „${esc(missing.join(' ').toUpperCase())}“ · ÄHNLICHE ERGEBNISSE</div>` : '';
+  
+  const missing = scored.length ? normWords.filter(w => !scored[0].c.nc.includes(w)) : [];
+  const note = missing.length ? `<div class="list-title">KEIN EXAKTER TREFFER FÜR „${esc(missing.join(' ').toUpperCase())}“ · ÄHNLICHE ERGEBNISSE</div>` : '';
+  
   box.innerHTML = lastResults.length ? note + lastResults.map(foodRow).join('') : '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Nichts gefunden.</div>';
 }
+
 $('searchResults').addEventListener('click', e => {
   const it = e.target.closest('.food-item');
   if (it) { const f = lastResults[+it.dataset.i]; if (!f) return; if (pickMode) { const pm = pickMode; closeModal(); applyMicros(pm, f); } else { closeModal(); openAmount(f); } }
 });
 
-// Portionen (Richtwerte, Menge ist immer änderbar)
+// Portionen
 const PORTIONS = [
   [/^hühnerei(,| roh| gekocht|$)/i, [['1 Ei', 60]]],
   [/brötchen|semmel/i, [['1 Semmel', 50]]],
@@ -670,22 +811,33 @@ function copyYesterday() {
   todayMeals = meals; saveMeals(); refresh();
 }
 
-// Eigenes Produkt
+// Eigenes Produkt (mit allen Makros & Mikros wie auf Bild 2)
 let manualBarcode = null;
 function openManual(barcode) {
   manualBarcode = barcode;
   closeModal();
   $('sheetTitle').textContent = 'EIGENES PRODUKT';
-  ['mName', 'mKcal', 'mProt', 'mFat', 'mCarbIn'].forEach(i => $(i).value = '');
+  ['mName', 'm_kcal', 'm_prot', 'm_fat', 'm_carb', 'm_fib'].forEach(i => $(i).value = '');
+  NUT.forEach(x => $('m_' + x.k).value = '');
+  
   $('amountForm').classList.add('hidden'); $('manualForm').classList.remove('hidden');
   sheetCtx = null;
   $('sheet').classList.remove('hidden');
   $('mName').focus();
 }
 function saveManual() {
-  const name = $('mName').value.trim(), kcal = num($('mKcal').value), prot = num($('mProt').value);
+  const name = $('mName').value.trim(), kcal = num($('m_kcal').value), prot = num($('m_prot').value);
   if (!name || kcal == null || prot == null) { alert('Name, Kalorien und Eiweiß sind Pflicht.'); return; }
-  const food = { id: manualBarcode || ('custom_' + Date.now()), barcode: manualBarcode, name, kcal, prot, fat: num($('mFat').value), carb: num($('mCarbIn').value) };
+  
+  const food = { id: manualBarcode || ('custom_' + Date.now()), barcode: manualBarcode, name, kcal, prot };
+  food.fat = num($('m_fat').value);
+  food.carb = num($('m_carb').value);
+  food.fib = num($('m_fib').value);
+  
+  NUT.forEach(x => {
+    food[x.k] = num($('m_' + x.k).value);
+  });
+
   customFoods = customFoods.filter(f => f.id !== food.id).concat(food);
   jset('essenlog_custom_foods', customFoods); buildIndex();
   closeSheet(); openAmount(food);
@@ -746,7 +898,6 @@ function setHist(n) { histDays = n; renderHistory(); }
 
 function renderHistory() {
   $('h7').classList.toggle('on', histDays === 7); $('h30').classList.toggle('on', histDays === 30);
-  // Tage
   let rows = '', sumK = 0, sumP = 0, cnt = 0;
   const gapAcc = {}; let gapDays = 0;
   for (let i = 0; i < histDays; i++) {
@@ -766,7 +917,6 @@ function renderHistory() {
   $('histRows').innerHTML = rows;
   $('histAvg').textContent = cnt ? `Ø ${Math.round(sumK / cnt)} kcal · ${Math.round(sumP / cnt)} g P` : '';
 
-  // Gewicht
   const pts = Object.keys(weights).sort().slice(-30).map(d => ({ d, v: weights[d] }));
   if (pts.length < 2) {
     $('weightChart').innerHTML = `<div class="note" style="text-align:center;padding:20px 0;">${pts.length ? `Aktuell ${pts[0].v} kg. ` : ''}Ein Verlauf erscheint, sobald du an mindestens 2 Tagen dein Gewicht im Profil speicherst.</div>`;
@@ -782,7 +932,6 @@ function renderHistory() {
       <div class="row mono" style="font-size:11px;color:var(--muted);"><span>${first.v} kg</span><span>${diff > 0 ? '+' : ''}${diff.toFixed(1)} kg</span><span>${last.v} kg</span></div>`;
   }
 
-  // Lücken
   const gl = Object.values(gapAcc).map(a => ({ x: a.x, avg: a.sum / a.n, n: a.n })).filter(a => a.avg < 0.5).sort((a, b) => a.avg - b.avg).slice(0, 8);
   $('histGaps').innerHTML = !gapDays ? '<div class="note">Noch keine Daten.</div>'
     : gl.length ? gl.map(a => `<div class="row mono" style="font-size:12px;"><span>${a.x.label}</span><span style="color:var(--pink)">Ø ${Math.round(a.avg * 100)} %</span></div>`).join('') + '<div class="note">Nur Tage mit erfassten Werten zählen.</div>'
