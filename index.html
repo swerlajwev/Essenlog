@@ -7,7 +7,6 @@
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="./manifest.json">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<!-- Barcode Scanner Library -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 <style>
   :root{
@@ -43,11 +42,6 @@
   .input-group input, .input-group select{padding:10px;border:1px solid var(--line);font-family:var(--font-b);font-size:16px;outline:none;width:100%;}
   .input-group input:focus, .input-group select:focus{border-color:var(--ink);}
 
-  .macro-row{display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:6px;}
-  .macro-row span{width:110px;}
-  .macro-row .bar{flex:1;}
-  .macro-row b{width:70px;text-align:right;font-size:12px;font-weight:400;}
-
   #bottomNav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:80;padding-bottom:env(safe-area-inset-bottom);max-width:480px;margin:0 auto;}
   #bottomNav button{flex:1;background:none;border:none;padding:12px 0;font-family:var(--font-m);font-size:10px;letter-spacing:.1em;color:var(--muted);cursor:pointer;}
   #bottomNav button.active{color:var(--ink);font-weight:600;border-top:2px solid var(--ink);}
@@ -56,7 +50,7 @@
 
   #modal {position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;z-index:100;display:flex;flex-direction:column;overflow-y:auto;}
   #modal .header{padding:20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:10;}
-  #modal .search-wrap{padding:10px 20px;}
+  #modal .search-wrap{padding:10px 20px; display:flex; gap:10px; flex-direction:column;}
   #modal .search-input{width:100%;padding:12px;border:1px solid var(--line);font-size:16px;font-family:var(--font-b);outline:none;}
   #modal .search-input:focus{border-color:var(--ink);}
   #modal .list{flex:1;padding:0 20px 20px;}
@@ -89,7 +83,7 @@
     <div class="row" style="align-items:flex-end;margin-bottom:12px;">
       <div><div class="eyebrow" id="todayDate">HEUTE</div><h1 class="display">ÜBERSICHT</h1></div>
       <div class="btn-group">
-       <button class="btn btn-outline" style="padding: 0 12px; display: flex; align-items: center; justify-content: center;" onclick="startScanner()" aria-label="Barcode scannen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg></button>
+        <button class="btn btn-outline" style="padding: 0 12px; display: flex; align-items: center; justify-content: center;" onclick="startScanner()" aria-label="Barcode scannen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg></button>
         <button class="btn" onclick="openModal()">+ ESSEN</button>
       </div>
     </div>
@@ -121,21 +115,18 @@
 
     <div class="frame col">
       <span class="eyebrow">MIKRONÄHRSTOFFE</span>
-      
       <div class="micro-group">
         <div class="micro-header" onclick="this.nextElementSibling.classList.toggle('open')">
           <span>VITAMINE</span><span>▼</span>
         </div>
         <div class="micro-list" id="micro-vitamins"></div>
       </div>
-
       <div class="micro-group">
         <div class="micro-header" onclick="this.nextElementSibling.classList.toggle('open')">
           <span>MINERALSTOFFE</span><span>▼</span>
         </div>
         <div class="micro-list" id="micro-minerals"></div>
       </div>
-
       <div class="micro-group">
         <div class="micro-header" onclick="this.nextElementSibling.classList.toggle('open')">
           <span>SONSTIGE</span><span>▼</span>
@@ -192,6 +183,7 @@
   </div>
   <div class="search-wrap">
     <input type="text" id="foodSearch" class="search-input" placeholder="Suche (z.B. Apfel)..." oninput="searchFood(this.value)">
+    <button class="btn btn-outline" style="width:100%; font-size:12px;" onclick="openManualAdd()">+ EIGENES PRODUKT EINGEBEN</button>
   </div>
   <div class="list" id="searchResults">
     <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Tippe, um zu suchen...</div>
@@ -214,7 +206,9 @@ let profile = JSON.parse(localStorage.getItem('essenlog_profile')) || { weight: 
 let steps = JSON.parse(localStorage.getItem('essenlog_steps')) || { date: today, count: 0 };
 let todayMeals = JSON.parse(localStorage.getItem('essenlog_meals_' + today)) || [];
 let blsData = [];
+let customFoods = JSON.parse(localStorage.getItem('essenlog_custom_foods')) || [];
 
+// BLS Daten laden
 fetch('./bls.json')
   .then(response => response.json())
   .then(data => { blsData = data; console.log("BLS Daten geladen"); })
@@ -294,8 +288,8 @@ function renderMicros() {
     const container = document.getElementById(containerId);
     container.innerHTML = Object.entries(names).map(([key, label]) => {
       const val = sumKey(key);
-      if (val === 0) return ''; // Nur anzeigen, wenn was da ist
-      const pct = Math.min(100, (val / 100) * 100); // Placeholder: 100 als 100% angenommen
+      if (val === 0) return ''; 
+      const pct = Math.min(100, (val / 100) * 100); 
       return `<div class="micro-item"><span>${label}</span><div class="bar"><i style="width:${pct}%;background:var(--sky);"></i></div><b>${val.toFixed(1)}${unit}</b></div>`;
     }).join('');
   }
@@ -309,10 +303,11 @@ function closeModal() { document.getElementById('modal').classList.add('hidden')
 
 function searchFood(query) {
   const resultsDiv = document.getElementById('searchResults');
-  if (blsData.length === 0) { resultsDiv.innerHTML = '<div style="color:var(--pink);padding:20px;text-align:center;">Bitte lade zuerst die bls.json hoch.</div>'; return; }
+  if (blsData.length === 0 && customFoods.length === 0) { resultsDiv.innerHTML = '<div style="color:var(--pink);padding:20px;text-align:center;">Bitte lade zuerst die bls.json hoch oder lege ein eigenes Produkt an.</div>'; return; }
   if (query.length < 2) { resultsDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Mindestens 2 Buchstaben...</div>'; return; }
   
-  const results = blsData.filter(item => item.name.toLowerCase().includes(query.toLowerCase())).slice(0, 20);
+  const allFoods = [...customFoods, ...blsData];
+  const results = allFoods.filter(item => item.name.toLowerCase().includes(query.toLowerCase())).slice(0, 20);
   if (results.length === 0) { resultsDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Nichts gefunden.</div>'; return; }
 
   resultsDiv.innerHTML = results.map(item => `
@@ -322,13 +317,11 @@ function searchFood(query) {
 }
 
 function promptAmount(id) {
-  const food = blsData.find(f => f.id === id); if (!food) return;
+  const food = [...customFoods, ...blsData].find(f => f.id === id); if (!food) return;
   const gramsStr = prompt(`Wie viel Gramm von "${food.name}"?`, "100"); if (!gramsStr) return;
   const grams = parseFloat(gramsStr.replace(',', '.')); if (isNaN(grams) || grams <= 0) return;
   
   const newMeal = { id: food.id, name: food.name, grams: grams, cal: (food.kcal || 0) * (grams/100), prot: (food.prot || 0) * (grams/100) };
-  
-  // Mikros für die Mahlzeit mitspeichern
   ['vitA','vitD','vitE','vitK','vitB1','vitB2','vitB3','vitB5','vitB6','vitB7','folat','vitB12','vitC','calcium','magnesium','kalium','natrium','eisen','zink','jod','kupfer','mangan','phosphor','chlorid','fluorid','chrom','molybdän','omega3','epa','dha'].forEach(k => {
     newMeal[k] = food[k] || 0;
   });
@@ -336,6 +329,33 @@ function promptAmount(id) {
   todayMeals.push(newMeal);
   localStorage.setItem('essenlog_meals_' + today, JSON.stringify(todayMeals));
   closeModal(); renderMeals(); calcAll(); renderMicros();
+}
+
+// --- EIGENE PRODUKTE (Manuelle Eingabe) ---
+function openManualAdd() {
+  closeModal();
+  const name = prompt("Produktname:");
+  if (!name) return;
+  
+  const kcal = prompt("Kalorien pro 100g (kcal):");
+  if (kcal === null) return;
+  
+  const prot = prompt("Eiweiß pro 100g (g):");
+  if (prot === null) return;
+
+  const newFood = {
+    id: 'custom_' + Date.now(),
+    name: name,
+    kcal: parseFloat(kcal.replace(',', '.')) || 0,
+    prot: parseFloat(prot.replace(',', '.')) || 0
+  };
+
+  customFoods.push(newFood);
+  localStorage.setItem('essenlog_custom_foods', JSON.stringify(customFoods));
+  
+  alert("Produkt gespeichert! Du findest es jetzt in der Suche.");
+  openModal(); 
+  searchFood(newFood.name); // Zeigt das neue Produkt direkt an
 }
 
 function switchTab(tab) {
@@ -358,7 +378,6 @@ function startScanner() {
     { facingMode: "environment" },
     config,
     (decodedText, decodedResult) => {
-      // Erfolgreich gescannt
       html5QrCode.stop().then((ignore) => {
         document.getElementById('scannerModal').classList.add('hidden');
         fetchOpenFoodFacts(decodedText);
@@ -382,28 +401,34 @@ function closeScanner() {
 }
 
 async function fetchOpenFoodFacts(barcode) {
-  const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-  const data = await res.json();
-  
-  if (data.status === 1 && data.product) {
-    const p = data.product;
-    const name = p.product_name_de || p.product_name || "Unbekanntes Produkt";
-    const kcal = p.nutriments['energy-kcal_100g'] || 0;
-    const prot = p.nutriments.proteins_100g || 0;
+  try {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+    const data = await res.json();
     
-    const gramsStr = prompt(`Gefunden: ${name}\n${Math.round(kcal)} kcal / 100g\n\nWie viel Gramm?`, "100");
-    if (!gramsStr) return;
-    const grams = parseFloat(gramsStr.replace(',', '.'));
-    
-    const newMeal = { id: barcode, name: name, grams: grams, cal: kcal * (grams/100), prot: prot * (grams/100) };
-    
-    // Bei OFF haben wir keine Mikros, also 0 setzen
-    todayMeals.push(newMeal);
-    localStorage.setItem('essenlog_meals_' + today, JSON.stringify(todayMeals));
-    renderMeals(); calcAll(); renderMicros();
-    
-  } else {
-    alert("Produkt nicht in der Open Food Facts Datenbank gefunden.");
+    if (data.status === 1 && data.product) {
+      const p = data.product;
+      const name = p.product_name_de || p.product_name || "Unbekanntes Produkt";
+      const kcal = p.nutriments['energy-kcal_100g'] || 0;
+      const prot = p.nutriments.proteins_100g || 0;
+      
+      const gramsStr = prompt(`Gefunden: ${name}\n${Math.round(kcal)} kcal / 100g\n\nWie viel Gramm?`, "100");
+      if (!gramsStr) return;
+      const grams = parseFloat(gramsStr.replace(',', '.'));
+      
+      const newMeal = { id: barcode, name: name, grams: grams, cal: kcal * (grams/100), prot: prot * (grams/100) };
+      
+      todayMeals.push(newMeal);
+      localStorage.setItem('essenlog_meals_' + today, JSON.stringify(todayMeals));
+      renderMeals(); calcAll(); renderMicros();
+      
+    } else {
+      const manual = confirm("Produkt nicht in der Open Food Facts-Datenbank gefunden.\n\nMöchtest du die Nährwerte manuell eingeben?");
+      if (manual) {
+        openManualAdd(); // Ruft die manuelle Eingabe auf
+      }
+    }
+  } catch (err) {
+    alert("Fehler bei der Abfrage. Bitte versuche es später noch einmal.");
   }
 }
 
