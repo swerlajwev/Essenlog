@@ -542,17 +542,33 @@ function searchFood(query) {
   }
   if (!blsData.length && !customFoods.length && !extraFoods.length) { box.innerHTML = '<div style="color:var(--pink);padding:20px;text-align:center;">Datenbank (bls.json) nicht geladen. Prüfe die Verbindung oder lege ein eigenes Produkt an.</div>'; return; }
   if (q.length < 2) { box.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Mindestens 2 Buchstaben...</div>'; return; }
-  const words = q.split(/\s+/);
-  const scored = [];
-  const test = (f, n) => {
-    if (!words.every(w => n.includes(w))) return;
-    scored.push({ f, s: (n.startsWith(words[0]) ? 0 : 1) * 1000 + n.length });
-  };
-  if (!pickMode) customFoods.forEach(f => test(f, norm(f.name)));
-  blsIndex.forEach(o => { if (!pickMode || blsSet.has(o.f.id)) test(o.f, o.n); });
+  // Tolerante Suche: Leerzeichen/Bindestriche egal ("haferflocken" findet "Hafer Flocken").
+  // Findet kein Lebensmittel ALLE Wörter, zählen die Hauptwörter (ab 3 Buchstaben); Wörter ohne Treffer
+  // (z.B. Marken wie "dm") werden ignoriert und oben vermerkt, statt die ganze Suche zu blockieren.
+  const cmp = s => s.replace(/[\s\-.,()\/·]+/g, '');
+  const words = q.split(/\s+/).filter(Boolean);
+  const cands = [];
+  const add = (f, n) => cands.push({ f, n, nc: cmp(n) });
+  if (!pickMode) customFoods.forEach(f => add(f, norm(f.name)));
+  blsIndex.forEach(o => { if (!pickMode || blsSet.has(o.f.id)) add(o.f, o.n); });
+  const hit = (c, w) => c.n.includes(w) || c.nc.includes(cmp(w));
+  const used = words.filter(w => cands.some(c => hit(c, w)));
+  const rank = (c, ws) => (c.n.startsWith(ws[0]) || c.nc.startsWith(cmp(ws[0])) ? 0 : 1) * 1000 + c.n.length;
+  let scored = cands.filter(c => used.length && used.every(w => hit(c, w))).map(c => ({ c, s: rank(c, used) }));
+  if (!scored.length && used.length) {
+    const core = used.filter(w => w.length >= 3), main = core.length ? core : used;
+    scored = cands.filter(c => main.every(w => hit(c, w)))
+      .map(c => ({ c, s: (used.length - used.filter(w => hit(c, w)).length) * 100000 + rank(c, main) }));
+    if (!scored.length) {   // sonst: alles, was mindestens ein Hauptwort enthält, die meisten Treffer zuerst
+      scored = cands.filter(c => main.some(w => hit(c, w)))
+        .map(c => ({ c, s: (main.length - main.filter(w => hit(c, w)).length) * 100000 + rank(c, main) }));
+    }
+  }
   scored.sort((a, b) => a.s - b.s);
-  lastResults = scored.slice(0, 30).map(o => o.f);
-  box.innerHTML = lastResults.length ? lastResults.map(foodRow).join('') : '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Nichts gefunden.</div>';
+  lastResults = scored.slice(0, 30).map(o => o.c.f);
+  const missing = scored.length ? words.filter(w => !hit(scored[0].c, w)) : [];
+  const note = missing.length ? `<div class="list-title">KEIN TREFFER FÜR „${esc(missing.join(' ').toUpperCase())}“ · ÄHNLICHE ERGEBNISSE</div>` : '';
+  box.innerHTML = lastResults.length ? note + lastResults.map(foodRow).join('') : '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Nichts gefunden.</div>';
 }
 $('searchResults').addEventListener('click', e => {
   const it = e.target.closest('.food-item');
