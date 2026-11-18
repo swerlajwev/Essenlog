@@ -254,7 +254,7 @@
     <button class="btn btn-grey" onclick="closeModal()">ABBRECHEN</button>
   </div>
   <div class="search-wrap">
-    <input type="text" id="foodSearch" class="search-input" placeholder="Suche (z.B. Apfel, haferflocken)..." oninput="searchFood(this.value)" autocomplete="off">
+    <input type="text" id="foodSearch" class="search-input" placeholder="Suche (z.B. Apfel)..." oninput="searchFood(this.value)" autocomplete="off">
     <button class="btn btn-outline" style="width:100%; font-size:12px;" onclick="openManual(null)">+ EIGENES PRODUKT EINGEBEN</button>
   </div>
   <div class="list" id="searchResults"></div>
@@ -357,14 +357,11 @@ const num = s => { const v = parseFloat(String(s).replace(',', '.')); return isN
 function jget(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
 function jset(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { alert('Speichern fehlgeschlagen (Speicher voll?).'); } }
 function fmt(v) { return v >= 100 ? String(Math.round(v)) : v >= 1 ? String(Math.round(v * 10) / 10) : v.toFixed(2); }
-function norm(s) { return String(s).toLowerCase().replace(/ß/g, 'ss').normalize('NFD').replace(/[̀-ͯ]/g, ''); }
 
 let today = dstr(new Date());
 $('todayDate').textContent = new Date().toLocaleDateString('de-DE', {weekday:'long', day:'2-digit', month:'short'}).toUpperCase();
 
 /* ================= Nährstoff-Definitionen ================= */
-// Referenzwerte (100 %): D-A-CH, vereinfacht. Arrays = Altersgruppen [15-18, 19-24, 25-50, 51+]
-// ul = Obergrenze (rote Warnung)
 const NUT = [
   {k:'vitA', label:'Vit A', unit:'µg', grp:'vit', ul:3000, m:[1100,1000,1000,1000], w:[900,800,800,800]},
   {k:'vitD', label:'Vit D', unit:'µg', grp:'vit', ul:100, all:20},
@@ -414,10 +411,18 @@ let weights = jget('essenlog_weights', {});
 let customFoods = jget('essenlog_custom_foods', []);
 let lastGrams = jget('essenlog_lastgrams', {});
 let recentIds = jget('essenlog_recent', []);
-let blsSet = new Set(), blsData = [], blsIndex = [], foodMap = new Map(), extraFoods = [], extraByCode = new Map();
+let blsSet = new Set(), blsData = [], foodMap = new Map(), extraFoods = [], extraByCode = new Map();
 let histDays = 7;
 
-// Alte Einträge (vor v2) auf neues Format bringen: n = Nährwerte pro 100 g (null = keine Daten)
+// Fallback-Daten für sofortige Suche
+const FALLBACK_DATA = [
+    {"id":"C133000","name":"Hafer Flocken","kcal":347.9,"prot":13.22,"fat":6.65,"carb":53.3,"fib":10.98},
+    {"id":"E510000","name":"Vollkornteigwaren eifrei, roh","kcal":355.6,"prot":14.3,"fat":2.93,"carb":62.9,"fib":10.2},
+    {"id":"T102100","name":"Hering roh","kcal":149.8,"prot":17.2,"fat":9.01,"carb":0},
+    {"id":"P100000","name":"Apfel frisch","kcal":52,"prot":0.3,"fat":0.2,"carb":11.4,"fib":2.4},
+    {"id":"P100100","name":"Apfelwein","kcal":43.9,"prot":null,"fat":null,"carb":4,"fib":null}
+];
+
 function migrate(m) {
   if (m.n) return m;
   const g = m.grams > 0 ? m.grams : 100, n = {};
@@ -434,14 +439,17 @@ const saveMeals = () => jset('essenlog_meals_' + today, todayMeals);
 function buildIndex() {
   blsSet = new Set(blsData.map(f => f.id));
   const base = blsData.concat(extraFoods);
-  blsIndex = base.map(f => ({ f, n: norm(f.name) }));
   foodMap = new Map(); extraByCode = new Map();
   base.forEach(f => foodMap.set(f.id, f));
   extraFoods.forEach(f => { if (f.barcode) extraByCode.set(String(f.barcode), f); });
   customFoods.forEach(f => foodMap.set(f.id, f));
 }
 
-fetch('./bls.json').then(r => r.json()).then(d => { blsData = d; buildIndex(); }).catch(() => console.warn('bls.json nicht geladen'));
+// Daten laden
+fetch('./bls.json').then(r => r.json()).then(d => { blsData = d; buildIndex(); }).catch(() => { 
+    blsData = FALLBACK_DATA; 
+    buildIndex(); 
+});
 ['products.json', 'supermarkt.json'].forEach(fn => fetch('./' + fn).then(r => r.ok ? r.json() : []).then(d => { if (Array.isArray(d) && d.length) { extraFoods = extraFoods.concat(d); buildIndex(); } }).catch(() => {}));
 
 /* ================= Berechnung ================= */
@@ -585,41 +593,42 @@ function foodRow(f, i) {
   return `<div class="food-item" data-i="${i}"><div class="name">${esc(f.name)}</div><div class="info">${f.kcal != null ? Math.round(f.kcal) : '?'} kcal / 100g</div></div>`;
 }
 
-// 1. Synonyme für die Suche
+// Synonyme
 const SYNONYMS = {
-  "nudeln": "teigwaren",
-  "pasta": "teigwaren",
-  "haehnchen": "huhn", // BLS nutzt oft "Huhn" oder "Hähnchen"
-  "hähnchen": "huhn",
-  "joghurt": "jogurt",
-  "kartoffel": "kartoffeln",
-  "ei": "hühnerei"
+  "nudeln": "teigwaren", "pasta": "teigwaren",
+  "haehnchen": "huhn", "hähnchen": "huhn",
+  "joghurt": "jogurt", "kartoffel": "kartoffeln", "ei": "hühnerei"
 };
 
-// 2. Spezielle Such-Normalisierung (Umlaute zu ae/oe/ue)
-function searchNorm(s) {
+// Extrem tolerante Normalisierung
+function normalizeText(s) {
   return String(s).toLowerCase()
-    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
-    .replace(/[\s\-_.,()\/·]+/g, ''); // Entfernt alle Trennzeichen
+    .replace(/ä|ae/g, "a")
+    .replace(/ö|oe/g, "o")
+    .replace(/ü|ue/g, "u")
+    .replace(/ß|ss/g, "s")
+    .replace(/[\s\-_.,()\/·]+/g, '');
 }
 
-// 3. Levenshtein-Distanz für Tippfehler
-function levenshtein(a, b) {
+// DAMERAU-LEVENSHTEIN (Zählt vertauschte Buchstaben wie 'afpel' -> 'apfel' als 1 Fehler!)
+function damerauLevenshtein(a, b) {
   if (a.length === 0) return b.length;
   if (b.length === 0) return a.length;
-  const matrix = [];
+  let matrix = [];
   for (let i = 0; i <= b.length; i++) matrix[i] = [i];
   for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  
   for (let i = 1; i <= b.length; i++) {
     for (let j = 1; j <= a.length; j++) {
-      if (b.charAt(i - 1) === a.charAt(j - 1)) {
-        matrix[i][j] = matrix[i - 1][j - 1];
-      } else {
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j - 1] + 1, // Ersetzen
-          matrix[i][j - 1] + 1,     // Einfügen
-          matrix[i - 1][j] + 1      // Löschen
-        );
+      let cost = (b.charAt(i - 1) === a.charAt(j - 1)) ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1, // löschen
+        matrix[i][j - 1] + 1, // einfügen
+        matrix[i - 1][j - 1] + cost // ersetzen
+      );
+      // Tausch von zwei benachbarten Buchstaben (Transposition)
+      if (i > 1 && j > 1 && b.charAt(i - 1) === a.charAt(j - 2) && b.charAt(i - 2) === a.charAt(j - 1)) {
+        matrix[i][j] = Math.min(matrix[i][j], matrix[i - 2][j - 2] + cost);
       }
     }
   }
@@ -629,12 +638,11 @@ function levenshtein(a, b) {
 function searchFood(query) {
   const box = $('searchResults');
   const rawQuery = query.trim().toLowerCase();
-  
+
   if (pickMode && !rawQuery) { 
     box.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Suche ein ähnliches Lebensmittel aus der BLS (z.B. „Hafer Flocken“).</div>'; 
     return; 
   }
-  
   if (!rawQuery) {
     const rec = recentIds.map(id => foodMap.get(id)).filter(Boolean);
     lastResults = rec;
@@ -642,73 +650,78 @@ function searchFood(query) {
       : '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Tippe, um zu suchen...</div>';
     return;
   }
-  
-  if (!blsData.length && !customFoods.length && !extraFoods.length) { 
-    box.innerHTML = '<div style="color:var(--pink);padding:20px;text-align:center;">Datenbank (bls.json) nicht geladen. Prüfe die Verbindung oder lege ein eigenes Produkt an.</div>'; 
+
+  const allData = [...blsData, ...extraFoods, ...customFoods];
+  if (allData.length === 0) { 
+    box.innerHTML = '<div style="color:var(--pink);padding:20px;text-align:center;">Datenbank nicht geladen. Bitte Internet prüfen oder eigenes Produkt anlegen.</div>'; 
     return; 
   }
-  
   if (rawQuery.length < 2) { 
     box.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Mindestens 2 Buchstaben...</div>'; 
     return; 
   }
 
-  // Wörter aufteilen und Synonyme anwenden
   let words = rawQuery.split(/\s+/).filter(Boolean);
   words = words.map(w => SYNONYMS[w] || w);
-  
-  // Normalisierte Suchwörter (z.B. "haehnchen")
-  const normWords = words.map(searchNorm);
-  
-  const cands = [];
-  const add = (f, n) => cands.push({ f, n, nc: searchNorm(n) });
-  
-  if (!pickMode) customFoods.forEach(f => add(f, norm(f.name)));
-  blsIndex.forEach(o => { if (!pickMode || blsSet.has(o.f.id)) add(o.f, o.n); });
-
-  // Ranking-Funktion
-  const rank = (c, ws) => (c.nc.startsWith(ws[0]) ? 0 : 1) * 1000 + c.n.length;
+  const normWords = words.map(normalizeText);
 
   let scored = [];
 
-  // Schritt 1: Exakte Suche (mit Leerzeichen-Toleranz und Synonymen)
-  scored = cands.filter(c => normWords.every(w => c.nc.includes(w)))
-    .map(c => ({ c, s: rank(c, normWords) }));
+  // Suchen
+  allData.forEach(item => {
+    if (pickMode && !blsSet.has(item.id) && !customFoods.find(f=>f.id===item.id)) return;
+    const itemName = normalizeText(item.name);
+    let score = 0, matchCount = 0;
 
-  // Schritt 2: Fuzzy-Suche (Tippfehler / Levenshtein), falls nichts gefunden wurde
-  if (scored.length === 0) {
-    scored = cands.filter(c => {
-      return normWords.every(w => {
-        // Exakter Treffer im Namen?
-        if (c.nc.includes(w)) return true;
-        // Sonst: Tippfehler prüfen
-        const nameWords = c.nc.split(/[^a-z0-9]+/); 
-        for (let nw of nameWords) {
-          if (!nw) continue;
-          // Erlaube 1 Fehler bei Wörtern > 3 Buchstaben, 2 Fehler bei > 6
-          let maxDist = w.length > 6 ? 2 : (w.length > 3 ? 1 : 0);
-          if (levenshtein(w, nw) <= maxDist) return true;
+    for (let w of normWords) {
+      if (itemName.includes(w)) {
+        score += 100; 
+        matchCount++;
+      } else {
+        let bestDist = 999;
+        let parts = itemName.split(/[^a-z0-9]+/);
+        for (let p of parts) {
+          if (!p) continue;
+          let dist = damerauLevenshtein(w, p);
+          if (dist < bestDist) bestDist = dist;
         }
-        return false;
+        // Erlaube 2 Fehler bei Wörtern ab 5 Buchstaben, sonst 1 Fehler
+        let maxDist = w.length > 4 ? 2 : (w.length > 2 ? 1 : 0);
+        if (bestDist <= maxDist) { score += 50; matchCount++; }
+      }
+    }
+
+    if (matchCount === normWords.length) {
+      if (itemName.startsWith(normWords[0])) score += 20;
+      scored.push({ item, score });
+    }
+  });
+
+  scored.sort((a, b) => b.score - a.score || a.item.name.length - b.item.name.length);
+  let finalResults = scored.map(r => r.item).slice(0, 30);
+
+  if (finalResults.length === 0) {
+    const mainWords = normWords.filter(w => w.length >= 3);
+    if (mainWords.length > 0) {
+      let partial = [];
+      allData.forEach(item => {
+        if (pickMode && !blsSet.has(item.id) && !customFoods.find(f=>f.id===item.id)) return;
+        const itemName = normalizeText(item.name);
+        let matchCount = 0;
+        mainWords.forEach(w => { if (itemName.includes(w)) matchCount++; });
+        if (matchCount > 0) partial.push({ item, score: matchCount * 10 });
       });
-    }).map(c => ({ c, s: rank(c, normWords) + 5000 })); // Schlechteres Ranking als exakte Treffer
+      partial.sort((a, b) => b.score - a.score);
+      finalResults = partial.map(r => r.item).slice(0, 30);
+    }
   }
 
-  // Schritt 3: Teiltreffer (wenn immer noch nichts da ist)
-  if (scored.length === 0) {
-    const core = normWords.filter(w => w.length >= 3);
-    const main = core.length ? core : normWords;
-    scored = cands.filter(c => main.some(w => c.nc.includes(w)))
-      .map(c => ({ c, s: (main.length - main.filter(w => c.nc.includes(w)).length) * 100000 + rank(c, main) }));
+  if (finalResults.length > 0) {
+    lastResults = finalResults;
+    box.innerHTML = '<div class="list-title">ERGEBNISSE</div>' + lastResults.map(foodRow).join('');
+  } else {
+    box.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Nichts gefunden.</div>';
   }
-
-  scored.sort((a, b) => a.s - b.s);
-  lastResults = scored.slice(0, 30).map(o => o.c.f);
-  
-  const missing = scored.length ? normWords.filter(w => !scored[0].c.nc.includes(w)) : [];
-  const note = missing.length ? `<div class="list-title">KEIN EXAKTER TREFFER FÜR „${esc(missing.join(' ').toUpperCase())}“ · ÄHNLICHE ERGEBNISSE</div>` : '';
-  
-  box.innerHTML = lastResults.length ? note + lastResults.map(foodRow).join('') : '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Nichts gefunden.</div>';
 }
 
 $('searchResults').addEventListener('click', e => {
