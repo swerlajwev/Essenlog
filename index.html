@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nährwert-Suche</title>
+    <title>Mein Essens-Tracker</title>
     <style>
         :root {
-            --primary: #9ACD32; /* Dein Grün */
-            --bg: #f9f9f9;
+            --primary: #9ACD32;
+            --bg: #f4f6f8;
             --text: #333;
-            --border: #ccc;
+            --border: #ddd;
             --danger: #ff4d4d;
         }
         body {
@@ -23,15 +23,71 @@
             max-width: 800px;
             margin: 0 auto;
         }
-        h1, h2 {
-            text-align: center;
+        h1, h2, h3 {
             color: #222;
+            text-align: center;
         }
-        /* Suchbereich */
+        /* TAGES-ÜBERSICHT (TRACKER) */
+        .tracker-summary {
+            background: #fff;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            border-top: 5px solid var(--primary);
+        }
+        .tracker-summary h3 {
+            margin-top: 0;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            font-size: 18px;
+        }
+        .totals {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            text-align: center;
+            font-weight: bold;
+            margin-top: 15px;
+            font-size: 16px;
+        }
+        .totals div span {
+            display: block;
+            font-size: 12px;
+            color: #777;
+            font-weight: normal;
+        }
+        .log-list {
+            margin-top: 15px;
+            list-style: none;
+            padding: 0;
+        }
+        .log-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+        .log-item:last-child {
+            border-bottom: none;
+        }
+        .btn-remove {
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        /* SUCHE */
         .search-box {
             display: flex;
             gap: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
         }
         .search-box input {
             flex: 1;
@@ -60,68 +116,80 @@
             font-size: 14px;
             display: none;
         }
-        /* Ergebnis- und Listen-Karten */
+        /* ERGEBNIS KARTEN */
         .result-card {
             background: #fff;
             border: 1px solid var(--border);
-            border-radius: 5px;
+            border-radius: 8px;
             padding: 15px;
             margin-bottom: 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            position: relative;
         }
-        .result-card h3 {
-            margin-top: 0;
-            color: #222;
-            border-bottom: 2px solid var(--primary);
-            padding-bottom: 5px;
-            font-size: 18px;
-            padding-right: 70px; /* Platz für den Löschen-Button */
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .result-header h3 {
+            margin: 0;
+            font-size: 16px;
+            text-align: left;
         }
         .macros {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            font-size: 15px;
-            background: #f0f0f0;
+            gap: 10px;
+            font-size: 13px;
+            color: #555;
+            margin: 10px 0;
+        }
+        .add-section {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+            background: #f9f9f9;
             padding: 10px;
             border-radius: 5px;
         }
-        .micros {
-            font-size: 13px;
-            color: #555;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 8px;
-        }
-        .micro-item {
-            background: #fafafa;
-            padding: 5px;
-            border-radius: 3px;
-            border: 1px solid #eee;
-        }
-        .delete-btn {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: var(--danger);
-            color: white;
-            border: none;
-            border-radius: 3px;
-            padding: 5px 10px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 12px;
-        }
-        /* Formular */
-        form {
-            background: #fff;
-            padding: 20px;
-            border-radius: 5px;
+        .add-section input {
+            width: 80px;
+            padding: 8px;
             border: 1px solid var(--border);
-            margin-bottom: 20px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .btn-add {
+            background: var(--primary);
+            color: black;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+        }
+        .micros-details {
+            font-size: 12px;
+            color: #666;
+            margin-top: 10px;
+        }
+        /* FORMULAR (EIGENE PRODUKTE) */
+        details.form-details {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 40px;
+        }
+        summary {
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            color: #222;
+        }
+        form {
+            margin-top: 15px;
         }
         label {
             display: block;
@@ -137,18 +205,6 @@
             border: 1px solid var(--border);
             border-radius: 5px;
             box-sizing: border-box;
-        }
-        details {
-            margin-top: 15px;
-            background: #f1f1f1;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        summary {
-            cursor: pointer;
-            font-weight: bold;
-            color: #222;
-            outline: none;
         }
         .grid-2 {
             display: grid;
@@ -167,23 +223,29 @@
             cursor: pointer;
             margin-top: 20px;
         }
-        .submit-btn:hover {
-            background-color: #8bbd2b;
-        }
-        .empty-message {
-            text-align: center;
-            color: #777;
-            font-style: italic;
-            margin-bottom: 30px;
-        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Nährwert-Datenbank</h1>
+    <h1>Essens-Tracker</h1>
+
+    <!-- TAGES-TRACKER -->
+    <div class="tracker-summary">
+        <h3>Heute gegessen</h3>
+        <div class="totals">
+            <div><span>Kalorien</span> <span id="total-kcal">0</span> kcal</div>
+            <div><span>Eiweiß</span> <span id="total-prot">0</span> g</div>
+            <div><span>Fett</span> <span id="total-fat">0</span> g</div>
+            <div><span>Kohlenhydrate</span> <span id="total-carb">0</span> g</div>
+        </div>
+        <ul class="log-list" id="log-list">
+            <!-- Hier landen die heute gegessenen Sachen -->
+        </ul>
+    </div>
 
     <!-- SUCHE -->
+    <h2>Essen suchen & hinzufügen</h2>
     <div class="search-box">
         <input type="text" id="searchInput" placeholder="Suche (z.B. haferflocken, nudeln, haehnchen)...">
         <button onclick="performSearch()">Suchen</button>
@@ -192,120 +254,65 @@
     <div id="searchNotice" class="notice"></div>
     <div id="resultsContainer"></div>
 
-    <hr style="margin: 40px 0; border: 1px solid var(--border);">
-
     <!-- NEUES PRODUKT HINZUFÜGEN -->
-    <h2>Eigenes Produkt hinzufügen</h2>
-    <form id="productForm">
-        <label>Produktname (Pflichtfeld)</label>
-        <input type="text" id="p-name" required placeholder="z.B. Spar Haferflocken">
+    <details class="form-details">
+        <summary>➕ Neues eigenes Produkt anlegen</summary>
+        <form id="productForm">
+            <label>Produktname (Pflichtfeld)</label>
+            <input type="text" id="p-name" required placeholder="z.B. Spar Haferflocken">
 
-        <div class="grid-2">
-            <div>
-                <label>Kalorien (kcal / 100g)</label>
-                <input type="number" step="0.1" id="p-kcal" required>
+            <div class="grid-2">
+                <div>
+                    <label>Kalorien (kcal / 100g)</label>
+                    <input type="number" step="0.1" id="p-kcal" required>
+                </div>
+                <div>
+                    <label>Eiweiß (g / 100g)</label>
+                    <input type="number" step="0.01" id="p-prot" required>
+                </div>
+                <div>
+                    <label>Fett (g / 100g)</label>
+                    <input type="number" step="0.01" id="p-fat">
+                </div>
+                <div>
+                    <label>Kohlenhydrate (g / 100g)</label>
+                    <input type="number" step="0.01" id="p-carb">
+                </div>
+                <div>
+                    <label>Ballaststoffe (g / 100g)</label>
+                    <input type="number" step="0.01" id="p-fib">
+                </div>
             </div>
-            <div>
-                <label>Eiweiß (g / 100g)</label>
-                <input type="number" step="0.01" id="p-prot" required>
-            </div>
-            <div>
-                <label>Fett (g / 100g)</label>
-                <input type="number" step="0.01" id="p-fat">
-            </div>
-            <div>
-                <label>Kohlenhydrate (g / 100g)</label>
-                <input type="number" step="0.01" id="p-carb">
-            </div>
-            <div>
-                <label>Ballaststoffe (g / 100g)</label>
-                <input type="number" step="0.01" id="p-fib">
-            </div>
-        </div>
 
-        <!-- AUFKLAPPBARE BEREICHE FÜR MIKRONÄHRSTOFFE -->
-        <details>
-            <summary>Vitamine (optional)</summary>
-            <div class="grid-2" style="margin-top: 10px;">
-                <div><label>Vitamin A (µg)</label><input type="number" step="0.01" id="p-vitA"></div>
-                <div><label>Vitamin D (µg)</label><input type="number" step="0.01" id="p-vitD"></div>
-                <div><label>Vitamin E (mg)</label><input type="number" step="0.01" id="p-vitE"></div>
-                <div><label>Vitamin K (µg)</label><input type="number" step="0.01" id="p-vitK"></div>
-                <div><label>Vitamin B1 (mg)</label><input type="number" step="0.01" id="p-vitB1"></div>
-                <div><label>Vitamin B2 (mg)</label><input type="number" step="0.01" id="p-vitB2"></div>
-                <div><label>Vitamin B3 / Niacin (mg)</label><input type="number" step="0.01" id="p-vitB3"></div>
-                <div><label>Vitamin B5 (mg)</label><input type="number" step="0.01" id="p-vitB5"></div>
-                <div><label>Vitamin B6 (mg)</label><input type="number" step="0.01" id="p-vitB6"></div>
-                <div><label>Vitamin B7 / Biotin (µg)</label><input type="number" step="0.01" id="p-vitB7"></div>
-                <div><label>Folat (µg)</label><input type="number" step="0.01" id="p-folat"></div>
-                <div><label>Vitamin B12 (µg)</label><input type="number" step="0.01" id="p-vitB12"></div>
-                <div><label>Vitamin C (mg)</label><input type="number" step="0.01" id="p-vitC"></div>
-            </div>
-        </details>
-
-        <details>
-            <summary>Mineralstoffe & Spurenelemente (optional)</summary>
-            <div class="grid-2" style="margin-top: 10px;">
-                <div><label>Natrium (mg)</label><input type="number" step="0.01" id="p-natrium"></div>
-                <div><label>Chlorid (mg)</label><input type="number" step="0.01" id="p-chlorid"></div>
-                <div><label>Kalium (mg)</label><input type="number" step="0.01" id="p-kalium"></div>
-                <div><label>Calcium (mg)</label><input type="number" step="0.01" id="p-calcium"></div>
-                <div><label>Magnesium (mg)</label><input type="number" step="0.01" id="p-magnesium"></div>
-                <div><label>Phosphor (mg)</label><input type="number" step="0.01" id="p-phosphor"></div>
-                <div><label>Eisen (mg)</label><input type="number" step="0.01" id="p-eisen"></div>
-                <div><label>Zink (mg)</label><input type="number" step="0.01" id="p-zink"></div>
-                <div><label>Jod (µg)</label><input type="number" step="0.01" id="p-jod"></div>
-                <div><label>Kupfer (µg)</label><input type="number" step="0.01" id="p-kupfer"></div>
-                <div><label>Mangan (µg)</label><input type="number" step="0.01" id="p-mangan"></div>
-                <div><label>Fluorid (µg)</label><input type="number" step="0.01" id="p-fluorid"></div>
-                <div><label>Chrom (µg)</label><input type="number" step="0.01" id="p-chrom"></div>
-                <div><label>Molybdän (µg)</label><input type="number" step="0.01" id="p-molybdän"></div>
-            </div>
-        </details>
-
-        <details>
-            <summary>Fettsäuren (optional)</summary>
-            <div class="grid-2" style="margin-top: 10px;">
-                <div><label>Omega-3 (g)</label><input type="number" step="0.001" id="p-omega3"></div>
-                <div><label>EPA (g)</label><input type="number" step="0.001" id="p-epa"></div>
-                <div><label>DHA (g)</label><input type="number" step="0.001" id="p-dha"></div>
-            </div>
-        </details>
-
-        <button type="submit" class="submit-btn">SPEICHERN</button>
-    </form>
-
-    <hr style="margin: 40px 0; border: 1px solid var(--border);">
-
-    <!-- ÜBERSICHT DER EIGENEN PRODUKTE -->
-    <h2>Meine hinzugefügten Produkte</h2>
-    <div id="customProductsList">
-        <!-- Hier werden die Produkte per JavaScript eingefügt -->
-    </div>
-
+            <button type="submit" class="submit-btn">PRODUKT SPEICHERN</button>
+        </form>
+    </details>
 </div>
 
 <script>
     // Standard-Daten (Fallback, falls bls.json nicht geladen werden kann)
     let database = [
-        {"id":"C133000","name":"Hafer Flocken","kcal":347.9,"prot":13.22,"fat":6.65,"carb":53.3,"fib":10.98},
-        {"id":"E510000","name":"Vollkornteigwaren eifrei, roh","kcal":355.6,"prot":14.3,"fat":2.93,"carb":62.9,"fib":10.2},
+        {"id":"C133000","name":"Hafer Flocken","kcal":347.9,"prot":13.22,"fat":6.65,"carb":53.3},
+        {"id":"E510000","name":"Vollkornteigwaren eifrei, roh","kcal":355.6,"prot":14.3,"fat":2.93,"carb":62.9},
         {"id":"T102100","name":"Hering roh","kcal":149.8,"prot":17.2,"fat":9.01,"carb":0}
     ];
 
-    // Synonyme (erweitere diese Liste nach Bedarf)
+    // Synonyme
     const synonyms = {
         "nudeln": "teigwaren",
         "pasta": "teigwaren",
         "kartoffel": "kartoffeln",
         "joghurt": "jogurt",
-        "haehnchen": "hähnchen"
+        "haehnchen": "hähnchen",
+        "spar": "spar" // Wichtig für deine Marke
     };
+
+    let currentLog = []; // Hier speichern wir, was du heute isst
 
     // 1. Daten laden
     async function loadData() {
-        // Eigene Produkte aus dem Speicher laden
         const customProducts = JSON.parse(localStorage.getItem('customProducts')) || [];
+        currentLog = JSON.parse(localStorage.getItem('dailyLog')) || [];
         
         try {
             const response = await fetch('bls.json');
@@ -316,12 +323,10 @@
                 database = [...database, ...customProducts];
             }
         } catch (e) {
-            console.log("bls.json nicht gefunden, nutze Fallback-Daten.");
             database = [...database, ...customProducts];
         }
 
-        // Liste der eigenen Produkte sofort auf dem Bildschirm anzeigen
-        renderCustomProductsList();
+        renderLog();
     }
 
     // 2. Text normalisieren (Kleinschreibung, Umlaute, Leerzeichen)
@@ -332,7 +337,7 @@
             .replace(/[\s\-_]/g, ""); 
     }
 
-    // 3. Levenshtein-Distanz für Tippfehler (Toleranz)
+    // 3. Levenshtein-Distanz für Tippfehler
     function levenshtein(a, b) {
         if (a.length === 0) return b.length;
         if (b.length === 0) return a.length;
@@ -362,13 +367,8 @@
         noticeEl.style.display = 'none';
         resultsEl.innerHTML = '';
 
-        if (!query) {
-            noticeEl.innerText = "Bitte gib einen Suchbegriff ein.";
-            noticeEl.style.display = 'block';
-            return;
-        }
+        if (!query) return;
 
-        // Synonyme anwenden
         let searchWords = query.toLowerCase().split(/\s+/);
         searchWords = searchWords.map(word => synonyms[word] || word);
         const finalQuery = searchWords.join(" ");
@@ -376,9 +376,8 @@
 
         let results = database.filter(item => {
             const normName = normalizeText(item.name);
-            if (normName.includes(normQuery)) return true; // Exakter Treffer (auch Teilstring)
+            if (normName.includes(normQuery)) return true;
             
-            // Tippfehler-Toleranz
             if (normQuery.length > 3) {
                 const wordsInName = normName.split(/(?=[A-Z])|[\s\-_]/).filter(w => w.length > 0);
                 for (let w of wordsInName) {
@@ -388,7 +387,6 @@
             return false;
         });
 
-        // Wenn nichts gefunden wurde -> Teiltreffer suchen
         if (results.length === 0) {
             results = database.filter(item => {
                 const normName = normalizeText(item.name);
@@ -406,80 +404,99 @@
             return;
         }
 
-        // Ergebnisse anzeigen (Limit auf 15, damit es nicht zu lang wird)
-        results.slice(0, 15).forEach(item => {
-            resultsEl.innerHTML += createResultCard(item, false);
+        results.slice(0, 10).forEach(item => {
+            resultsEl.innerHTML += createResultCard(item);
         });
     }
 
-    // 5. Ergebnis-Karte bauen (isCustom = true zeigt einen Löschen-Button)
-    function createResultCard(item, isCustom) {
-        let microsHtml = '';
-        const microKeys = [
-            {k: 'vitA', l: 'Vit A'}, {k: 'vitD', l: 'Vit D'}, {k: 'vitE', l: 'Vit E'}, {k: 'vitK', l: 'Vit K'},
-            {k: 'vitB1', l: 'Vit B1'}, {k: 'vitB2', l: 'Vit B2'}, {k: 'vitB3', l: 'Vit B3'}, {k: 'vitB5', l: 'Vit B5'},
-            {k: 'vitB6', l: 'Vit B6'}, {k: 'vitB7', l: 'Vit B7'}, {k: 'folat', l: 'Folat'}, {k: 'vitB12', l: 'Vit B12'},
-            {k: 'vitC', l: 'Vit C'}, {k: 'natrium', l: 'Natrium'}, {k: 'chlorid', l: 'Chlorid'}, {k: 'kalium', l: 'Kalium'},
-            {k: 'calcium', l: 'Calcium'}, {k: 'magnesium', l: 'Magnesium'}, {k: 'phosphor', l: 'Phosphor'}, {k: 'eisen', l: 'Eisen'},
-            {k: 'zink', l: 'Zink'}, {k: 'jod', l: 'Jod'}, {k: 'kupfer', l: 'Kupfer'}, {k: 'mangan', l: 'Mangan'},
-            {k: 'omega3', l: 'Omega-3'}, {k: 'epa', l: 'EPA'}, {k: 'dha', l: 'DHA'}
-        ];
-
-        microKeys.forEach(m => {
-            if (item[m.k] !== null && item[m.k] !== undefined) {
-                microsHtml += `<div class="micro-item"><b>${m.l}:</b> ${item[m.k]}</div>`;
-            }
-        });
-
-        // Löschen-Button nur anzeigen, wenn es ein eigenes Produkt ist
-        const deleteBtn = isCustom ? `<button class="delete-btn" onclick="deleteCustomProduct('${item.id}')">Löschen</button>` : '';
-
+    // 5. Ergebnis-Karte bauen
+    function createResultCard(item) {
         return `
             <div class="result-card">
-                ${deleteBtn}
-                <h3>${item.name}</h3>
-                <div class="macros">
-                    <span>${item.kcal ? item.kcal + ' kcal' : '?'}</span>
-                    <span>Eiweiß: ${item.prot !== null ? item.prot + 'g' : '?'}</span>
-                    <span>Fett: ${item.fat !== null ? item.fat + 'g' : '?'}</span>
-                    <span>Kohlenhydrate: ${item.carb !== null ? item.carb + 'g' : '?'}</span>
-                    ${item.fib !== null ? `<span>Ballaststoffe: ${item.fib}g</span>` : ''}
+                <div class="result-header">
+                    <h3>${item.name}</h3>
                 </div>
-                <div class="micros">
-                    ${microsHtml || '<i>Keine weiteren Nährwerte hinterlegt.</i>'}
+                <div class="macros">
+                    <span><b>${item.kcal ? item.kcal : '?'}</b> kcal</span>
+                    <span>EW: <b>${item.prot !== null ? item.prot : '?'}g</b></span>
+                    <span>F: <b>${item.fat !== null ? item.fat : '?'}g</b></span>
+                    <span>KH: <b>${item.carb !== null ? item.carb : '?'}g</b></span>
+                </div>
+                <div class="add-section">
+                    <input type="number" id="amount_${item.id}" value="100" min="1" step="1"> 
+                    <span style="font-size: 14px;">Gramm</span>
+                    <button class="btn-add" onclick="addToLog('${item.id}')">Hinzufügen</button>
                 </div>
             </div>
         `;
     }
 
-    // 6. Liste der eigenen Produkte rendern
-    function renderCustomProductsList() {
-        const listEl = document.getElementById('customProductsList');
-        const customProducts = JSON.parse(localStorage.getItem('customProducts')) || [];
+    // 6. Zum Tracker hinzufügen
+    function addToLog(foodId) {
+        const amountInput = document.getElementById(`amount_${foodId}`);
+        const grams = parseFloat(amountInput.value);
+        if (!grams || grams <= 0) return alert("Bitte eine gültige Menge eingeben.");
 
-        if (customProducts.length === 0) {
-            listEl.innerHTML = '<p class="empty-message">Du hast noch keine eigenen Produkte hinzugefügt.</p>';
-            return;
-        }
+        const food = database.find(f => f.id === foodId);
+        if (!food) return;
 
-        listEl.innerHTML = '';
-        // Neueste Produkte zuerst anzeigen
-        const reversed = [...customProducts].reverse();
-        reversed.forEach(item => {
-            listEl.innerHTML += createResultCard(item, true);
-        });
+        // Berechnungen basierend auf 100g
+        const factor = grams / 100;
+        const logItem = {
+            logId: "log_" + Date.now(),
+            name: food.name,
+            grams: grams,
+            kcal: (food.kcal || 0) * factor,
+            prot: (food.prot || 0) * factor,
+            fat: (food.fat || 0) * factor,
+            carb: (food.carb || 0) * factor
+        };
+
+        currentLog.push(logItem);
+        localStorage.setItem('dailyLog', JSON.stringify(currentLog));
+        renderLog();
+        
+        // Kurzes Feedback
+        alert(`${grams}g ${food.name} hinzugefügt!`);
     }
 
-    // 7. Produkt löschen
-    function deleteCustomProduct(id) {
-        if (confirm("Möchtest du dieses Produkt wirklich löschen?")) {
-            let customProducts = JSON.parse(localStorage.getItem('customProducts')) || [];
-            customProducts = customProducts.filter(p => p.id !== id);
-            localStorage.setItem('customProducts', JSON.stringify(customProducts));
-            
-            // Datenbank und Ansicht aktualisieren
-            loadData();
+    // 7. Tracker-Liste & Summen rendern
+    function renderLog() {
+        const listEl = document.getElementById('log-list');
+        
+        let tKcal = 0, tProt = 0, tFat = 0, tCarb = 0;
+
+        if (currentLog.length === 0) {
+            listEl.innerHTML = '<li class="log-item" style="justify-content:center; color:#888;">Noch nichts gegessen heute.</li>';
+        } else {
+            listEl.innerHTML = '';
+            currentLog.forEach(item => {
+                tKcal += item.kcal;
+                tProt += item.prot;
+                tFat += item.fat;
+                tCarb += item.carb;
+
+                listEl.innerHTML += `
+                    <li class="log-item">
+                        <span>${item.grams}g ${item.name} <br><small style="color:#888;">${Math.round(item.kcal)} kcal</small></span>
+                        <button class="btn-remove" onclick="removeFromLog('${item.logId}')">X</button>
+                    </li>
+                `;
+            });
         }
+
+        // Summen oben aktualisieren (auf 0 Dezimalstellen gerundet)
+        document.getElementById('total-kcal').innerText = Math.round(tKcal);
+        document.getElementById('total-prot').innerText = tProt.toFixed(1);
+        document.getElementById('total-fat').innerText = tFat.toFixed(1);
+        document.getElementById('total-carb').innerText = tCarb.toFixed(1);
+    }
+
+    // 8. Aus Tracker löschen
+    function removeFromLog(logId) {
+        currentLog = currentLog.filter(item => item.logId !== logId);
+        localStorage.setItem('dailyLog', JSON.stringify(currentLog));
+        renderLog();
     }
 
     // Enter-Taste im Suchfeld
@@ -490,7 +507,7 @@
         }
     });
 
-    // 8. Formular absenden
+    // 9. Neues Produkt speichern
     document.getElementById('productForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
@@ -506,27 +523,16 @@
             prot: getVal('p-prot'),
             fat: getVal('p-fat'),
             carb: getVal('p-carb'),
-            fib: getVal('p-fib'),
-            vitA: getVal('p-vitA'), vitD: getVal('p-vitD'), vitE: getVal('p-vitE'), vitK: getVal('p-vitK'),
-            vitB1: getVal('p-vitB1'), vitB2: getVal('p-vitB2'), vitB3: getVal('p-vitB3'), vitB5: getVal('p-vitB5'),
-            vitB6: getVal('p-vitB6'), vitB7: getVal('p-vitB7'), folat: getVal('p-folat'), vitB12: getVal('p-vitB12'),
-            vitC: getVal('p-vitC'), natrium: getVal('p-natrium'), chlorid: getVal('p-chlorid'), kalium: getVal('p-kalium'),
-            calcium: getVal('p-calcium'), magnesium: getVal('p-magnesium'), phosphor: getVal('p-phosphor'), eisen: getVal('p-eisen'),
-            zink: getVal('p-zink'), jod: getVal('p-jod'), kupfer: getVal('p-kupfer'), mangan: getVal('p-mangan'),
-            fluorid: getVal('p-fluorid'), chrom: getVal('p-chrom'), molybdän: getVal('p-molybdän'),
-            omega3: getVal('p-omega3'), epa: getVal('p-epa'), dha: getVal('p-dha')
+            fib: getVal('p-fib')
         };
 
-        // In LocalStorage speichern
         let customProducts = JSON.parse(localStorage.getItem('customProducts')) || [];
         customProducts.push(newProduct);
         localStorage.setItem('customProducts', JSON.stringify(customProducts));
 
         alert("Produkt erfolgreich gespeichert!");
         this.reset();
-        
-        // Datenbank und Liste neu laden
-        loadData();
+        loadData(); // Datenbank aktualisieren
     });
 
     // App starten
