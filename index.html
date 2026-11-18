@@ -370,7 +370,7 @@
         <button class="btn btn-outline" style="flex:1;" onclick="exportData()">EXPORT</button>
         <button class="btn btn-outline" style="flex:1;" onclick="document.getElementById('importFile').click()">IMPORT</button>
       </div>
-      <div class="note">Beim Import wird nichts gelöscht oder überschrieben: Fehlendes wird ergänzt, gleiche Einträge nicht doppelt angelegt.</div>
+      <div class="note">Export erstellt eine JSON-Datei mit allen deinen Daten. Import ersetzt die aktuellen Daten durch das Backup.</div>
       <input type="file" id="importFile" accept="application/json,.json" class="hidden" onchange="importData(this)">
     </div>
     <div class="note" style="padding-bottom:12px;">
@@ -1924,44 +1924,18 @@ function renderBackupInfo() {
   el.textContent = (days.length ? `${days.length} Tage mit Einträgen (${bkFmtD(days[0])} bis ${bkFmtD(days[days.length - 1])}), ${meals} Mahlzeiten` : 'Noch keine Mahlzeiten')
     + `, ${prod} eigene Produkte, ${rec} Rezepte. Speicher: ca. ${Math.max(1, Math.round(bytes / 1024))} KB von ca. 5000 KB.`;
 }
+const BK_MAP = { customFoods: 'essenlog_custom_foods', recipes: 'essenlog_recipes', profile: 'essenlog_profile', diet: 'essenlog_diet',
+  weights: 'essenlog_weights', stepsLog: 'essenlog_stepslog', steps: 'essenlog_steps', lastGrams: 'essenlog_lastgrams',
+  recent: 'essenlog_recent', barcodeHistory: 'essenlog_barcode_history', theme: 'essenlog_theme' };
+const bkCount = (meals) => { let d = 0, m = 0; Object.values(meals).forEach(a => { if (Array.isArray(a) && a.length) { d++; m += a.length; } }); return { d, m }; };
 function exportData() {
-  const scope = 'all', from = null, to = null;
-  const inRange = d => (!from || d >= from) && (!to || d <= to);
-  const data = {};
-  bkKeys().forEach(k => {
-    const v = localStorage.getItem(k);
-    if (k.startsWith('essenlog_meals_')) { if (scope !== 'products' && inRange(k.slice(15))) data[k] = v; }
-    else if (k === 'essenlog_stepslog' || k === 'essenlog_weights') {
-      if (scope === 'products') return;
-      try { const o = JSON.parse(v), r = {}; Object.keys(o).forEach(d => { if (inRange(d)) r[d] = o[d]; }); if (Object.keys(r).length) data[k] = JSON.stringify(r); } catch (e) {}
-    }
-    else if (k === 'essenlog_custom_foods' || k === 'essenlog_recipes') data[k] = v;
-    else if (scope === 'all') data[k] = v;
-  });
-  const nDays = Object.keys(data).filter(k => k.startsWith('essenlog_meals_')).length;
-  if (!nDays && scope !== 'products' && scope !== 'all') { showDialog('Hinweis', 'Im gewählten Zeitraum gibt es keine Einträge.', [{ text: 'OK', primary: true }]); return; }
-  const label = scope === 'all' ? 'alles' : scope === 'products' ? 'produkte' : (from || 'start') + '_bis_' + (to || 'heute');
-  const blob = new Blob([JSON.stringify({ app: 'essenlog', exported: new Date().toISOString(), range: { scope, from, to }, data }, null, 1)], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `essenlog-${label}-${today}.json`;
+  const obj = { app: 'essenlog', appVersion: 2, exportedAt: new Date().toISOString(), meals: {} };
+  bkDays().forEach(d => obj.meals[d] = jget('essenlog_meals_' + d, []));
+  Object.entries(BK_MAP).forEach(([f, k]) => { const v = jget(k, undefined); if (v !== undefined) obj[f] = v; });
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `essenlog-backup-${today}.json`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  showToast(`Backup erstellt (${nDays} Tage)`);
-}
-function bkMerge(k, v) {
-  const old = localStorage.getItem(k);
-  if (old == null) { localStorage.setItem(k, v); return; }
-  try {
-    const o = JSON.parse(old), n = JSON.parse(v);
-    if (k.startsWith('essenlog_meals_')) {
-      const seen = new Set(o.map(x => JSON.stringify(x)));
-      localStorage.setItem(k, JSON.stringify(o.concat(n.filter(x => !seen.has(JSON.stringify(x))))));
-    } else if (k === 'essenlog_custom_foods' || k === 'essenlog_recipes') {
-      const ids = new Set(n.map(x => x.id));
-      localStorage.setItem(k, JSON.stringify(o.filter(x => !ids.has(x.id)).concat(n)));
-    } else if (k === 'essenlog_stepslog' || k === 'essenlog_weights') {
-      localStorage.setItem(k, JSON.stringify(Object.assign({}, o, n)));
-    }
-    /* Profil, Einstellungen usw.: vorhandene Werte bleiben */
-  } catch (e) {}
+  showToast('BACKUP EXPORTIERT');
 }
 function importData(inp) {
   const file = inp.files[0]; inp.value = ''; if (!file) return;
@@ -1969,25 +1943,35 @@ function importData(inp) {
   r.onload = () => {
     try {
       const j = JSON.parse(r.result);
-      if (j.app !== 'essenlog' || !j.data) throw 0;
-      const e = Object.entries(j.data).filter(([k]) => k.startsWith('essenlog_'));
-      const days = e.filter(([k]) => k.startsWith('essenlog_meals_')).map(([k]) => k.slice(15)).sort();
-      let meals = 0; e.forEach(([k, v]) => { if (k.startsWith('essenlog_meals_')) { try { meals += JSON.parse(v).length; } catch (x) {} } });
-      let prods = 0; try { prods = JSON.parse(j.data.essenlog_custom_foods || '[]').length; } catch (x) {}
-      const parts = [];
-      if (days.length) parts.push(`${days.length} Tage (${bkFmtD(days[0])} bis ${bkFmtD(days[days.length - 1])}) mit ${meals} Mahlzeiten`);
-      if (prods) parts.push(`${prods} Produkte/Rezepte`);
-      if (!parts.length) parts.push('nur Einstellungen');
-      const summary = parts.join(', ');
-      showDialog('Backup einspielen?', `Enthält: ${summary}.\n\nBestehende Daten bleiben erhalten. Fehlendes wird ergänzt, gleiche Einträge werden nicht doppelt angelegt.`, [
+      if (!j || j.app !== 'essenlog') throw new Error('Ungültige Datei');
+      const set = {}; const meals = {};
+      if (j.data && typeof j.data === 'object') {            /* altes Format */
+        Object.entries(j.data).forEach(([k, v]) => {
+          if (!k.startsWith('essenlog_')) return;
+          let val; try { val = JSON.parse(v); } catch (x) { return; }
+          if (k.startsWith('essenlog_meals_')) meals[k.slice(15)] = val; else set[k] = val;
+        });
+      } else {
+        Object.entries(BK_MAP).forEach(([f, k]) => { if (j[f] !== undefined && j[f] !== null) set[k] = j[f]; });
+        if (j.meals && typeof j.meals === 'object') Object.entries(j.meals).forEach(([d, a]) => { if (/^\d{4}-\d{2}-\d{2}$/.test(d) && Array.isArray(a)) meals[d] = a; });
+      }
+      const c = bkCount(meals);
+      const prods = Array.isArray(set.essenlog_custom_foods) ? set.essenlog_custom_foods.filter(f => !f.isRecipe).length : 0;
+      const msg = 'Achtung: Aktuelle Daten werden durch das Backup ersetzt.\n\n' +
+        'Backup vom: ' + (j.exportedAt || j.exported ? new Date(j.exportedAt || j.exported).toLocaleString('de-DE') : 'unbekannt') + '\n' +
+        'Tage im Backup: ' + c.d + '\n' + 'Mahlzeiten im Backup: ' + c.m + '\n' + 'Eigene Produkte im Backup: ' + prods + '\n\nFortfahren?';
+      showDialog('Backup einspielen?', msg, [
         { text: 'Abbrechen' },
         { text: 'OK', primary: true, action: () => {
-          e.forEach(([k, v]) => bkMerge(k, v));
-          try { sessionStorage.setItem('essenlog_importmsg', 'Importiert: ' + summary); } catch (x) {}
+          if (Object.keys(meals).length) bkKeys().filter(k => k.startsWith('essenlog_meals_')).forEach(k => localStorage.removeItem(k));
+          Object.entries(meals).forEach(([d, a]) => localStorage.setItem('essenlog_meals_' + d, JSON.stringify(a)));
+          Object.entries(set).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
+          const days = bkDays(); let m = 0; days.forEach(d => m += jget('essenlog_meals_' + d, []).length);
+          try { sessionStorage.setItem('essenlog_importmsg', 'Backup erfolgreich wiederhergestellt!\n\nTage: ' + days.length + '\nMahlzeiten: ' + m + '\nEigene Produkte: ' + jget('essenlog_custom_foods', []).filter(f => !f.isRecipe).length); } catch (x) {}
           location.reload();
         } }
       ]);
-    } catch (err) { showDialog('Fehler', 'Ungültige Backup-Datei.', [{ text: 'OK', primary: true }]); }
+    } catch (err) { showDialog('Fehler', 'Fehler beim Importieren: ' + err.message, [{ text: 'OK', primary: true }]); }
   };
   r.readAsText(file);
 }
@@ -2063,7 +2047,7 @@ function init() {
   renderRecipes();
   refresh();
   renderBackupInfo();
-  try { const m = sessionStorage.getItem('essenlog_importmsg'); if (m) { sessionStorage.removeItem('essenlog_importmsg'); setTimeout(() => showToast(m), 400); } } catch (e) {}
+  try { const m = sessionStorage.getItem('essenlog_importmsg'); if (m) { sessionStorage.removeItem('essenlog_importmsg'); setTimeout(() => showDialog('Backup', m, [{ text: 'OK', primary: true }]), 400); } } catch (e) {}
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && dstr(new Date()) !== today) location.reload(); });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
