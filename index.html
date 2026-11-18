@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Essenlog</title>
+<meta name="theme-color" content="#ffffff">
+<link rel="manifest" href="./manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Barcode Scanner Library -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
+  :root{
+    --bg:#fff; --ink:#09090b; --muted:#52525b; --line:#d4d4d8; --track:#e4e4e7;
+    --lime:#a3e635; --sky:#38bdf8; --pink:#ec4899; --lime-tint:#f7fee7;
+    --font-d:'Oswald',sans-serif; --font-m:'JetBrains Mono',monospace; --font-b:'Inter',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-b);-webkit-tap-highlight-color:transparent;}
+  #app{max-width:480px;margin:0 auto;padding:20px 20px 80px;display:flex;flex-direction:column;gap:12px;}
+  .mono{font-family:var(--font-m);}
+  .display{font-family:var(--font-d);}
+  .eyebrow{font-family:var(--font-m);font-size:11px;letter-spacing:.2em;color:var(--muted);}
+  h1{margin:4px 0 0;font-size:30px;font-weight:600;letter-spacing:.02em;font-family:var(--font-d);}
+  
+  .frame{position:relative;border:1px solid var(--line);padding:14px;background:#fff;margin-bottom:12px;}
+  .frame::before,.frame::after{content:"";position:absolute;width:12px;height:12px;}
+  .frame::before{top:-1px;left:-1px;border-top:2px solid var(--ink);border-left:2px solid var(--ink);}
+  .frame::after{bottom:-1px;right:-1px;border-bottom:2px solid var(--ink);border-right:2px solid var(--ink);}
+  
+  .row{display:flex;justify-content:space-between;align-items:center;}
+  .col{display:flex;flex-direction:column;gap:9px;}
+  .bar{height:8px;background:var(--track);width:100%;}
+  .bar i{display:block;height:8px;}
+  
+  .btn-group{display:flex; gap:8px;}
+  .btn{height:44px;padding:0 16px;border:0;background:var(--lime);color:#000;font-family:var(--font-d);font-size:14px;font-weight:600;letter-spacing:.1em;cursor:pointer;}
+  .btn:active{opacity:0.8;}
+  .btn-outline{background:#fff; border:1px solid var(--ink);}
+  
+  .input-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+  .input-group label{font-size:11px;font-family:var(--font-m);letter-spacing:.1em;color:var(--muted);}
+  .input-group input, .input-group select{padding:10px;border:1px solid var(--line);font-family:var(--font-b);font-size:16px;outline:none;width:100%;}
+  .input-group input:focus, .input-group select:focus{border-color:var(--ink);}
+
+  .macro-row{display:flex;align-items:center;gap:10px;font-size:13px;margin-bottom:6px;}
+  .macro-row span{width:110px;}
+  .macro-row .bar{flex:1;}
+  .macro-row b{width:70px;text-align:right;font-size:12px;font-weight:400;}
+
+  #bottomNav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:80;padding-bottom:env(safe-area-inset-bottom);max-width:480px;margin:0 auto;}
+  #bottomNav button{flex:1;background:none;border:none;padding:12px 0;font-family:var(--font-m);font-size:10px;letter-spacing:.1em;color:var(--muted);cursor:pointer;}
+  #bottomNav button.active{color:var(--ink);font-weight:600;border-top:2px solid var(--ink);}
+  
+  .hidden{display:none !important;}
+
+  #modal {position:fixed;top:0;left:0;right:0;bottom:0;background:#fff;z-index:100;display:flex;flex-direction:column;overflow-y:auto;}
+  #modal .header{padding:20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#fff;z-index:10;}
+  #modal .search-wrap{padding:10px 20px;}
+  #modal .search-input{width:100%;padding:12px;border:1px solid var(--line);font-size:16px;font-family:var(--font-b);outline:none;}
+  #modal .search-input:focus{border-color:var(--ink);}
+  #modal .list{flex:1;padding:0 20px 20px;}
+  .food-item{padding:12px;border-bottom:1px solid var(--track);cursor:pointer;display:flex;justify-content:space-between;}
+  .food-item:hover{background:#f4f4f5;}
+  .food-item .name{font-size:14px;font-weight:500;}
+  .food-item .info{font-size:12px;color:var(--muted);font-family:var(--font-m);}
+
+  .meal-item{display:flex;justify-content:space-between;padding:10px 14px;border:1px solid var(--line);margin-bottom:8px;align-items:center;}
+  .meal-item .name{font-size:13px;font-weight:500;}
+  .meal-item .macros{font-size:12px;font-family:var(--font-m);color:var(--muted);}
+
+  .micro-group{display:flex;flex-direction:column;gap:6px;margin-top:10px;border-top:1px solid var(--track);padding-top:10px;}
+  .micro-header{display:flex;justify-content:space-between;cursor:pointer;font-family:var(--font-m);font-size:11px;letter-spacing:.1em;}
+  .micro-list{display:none;flex-direction:column;gap:4px;margin-top:8px;}
+  .micro-list.open{display:flex;}
+  .micro-item{display:flex;align-items:center;gap:8px;font-size:12px;}
+  .micro-item span{width:90px;}
+  .micro-item .bar{flex:1;height:6px;}
+  .micro-item b{width:40px;text-align:right;font-size:11px;}
+
+  #scannerModal{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:200;display:flex;flex-direction:column;}
+  #reader {width:100%; flex:1; object-fit:cover;}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="tab-home">
+    <div class="row" style="align-items:flex-end;margin-bottom:12px;">
+      <div><div class="eyebrow" id="todayDate">HEUTE</div><h1 class="display">ÜBERSICHT</h1></div>
+      <div class="btn-group">
+        <button class="btn btn-outline" onclick="startScanner()">📷</button>
+        <button class="btn" onclick="openModal()">+ ESSEN</button>
+      </div>
+    </div>
+    
+    <div class="frame col">
+      <div class="row"><span class="eyebrow">KALORIEN</span><span class="mono" style="font-size:12px;color:var(--muted);" id="calRemaining">0 offen</span></div>
+      <div class="display" style="font-size:34px;font-weight:600;margin:6px 0 8px;" id="calCurrent">0 <span class="mono" style="font-size:13px;color:var(--muted);" id="calGoal">/ 0 KCAL</span></div>
+      <div class="bar"><i style="width:0%;background:var(--ink);" id="calBar"></i></div>
+    </div>
+
+    <div class="frame col">
+      <div class="row"><span class="eyebrow">EIWEISS</span><span class="mono" style="font-size:12px;color:var(--muted);" id="protRemaining">0 g offen</span></div>
+      <div class="display" style="font-size:34px;font-weight:600;margin:6px 0 8px;" id="protCurrent">0 <span class="mono" style="font-size:13px;color:var(--muted);" id="protGoal">/ 0 G</span></div>
+      <div class="bar"><i style="width:0%;background:var(--lime);" id="protBar"></i></div>
+    </div>
+    
+    <div class="frame col">
+      <span class="eyebrow">SCHRITTE HEUTE</span>
+      <input type="number" id="stepInput" placeholder="z.B. 8500" style="padding:8px;border:1px solid var(--line);font-family:var(--font-m);font-size:16px;" onchange="saveSteps(this.value)">
+      <div class="mono" style="font-size:11px;color:var(--muted);" id="stepFactor">Faktor: 1.55</div>
+    </div>
+
+    <div class="frame col" style="margin-top:12px;">
+      <span class="eyebrow">HEUTIGE MAHLZEITEN</span>
+      <div id="mealList">
+        <div style="font-size:13px;color:var(--muted);text-align:center;padding:10px;">Noch nichts gegessen.</div>
+      </div>
+    </div>
+
+    <div class="frame col">
+      <span class="eyebrow">MIKRONÄHRSTOFFE</span>
+      
+      <div class="micro-group">
+        <div class="micro-header" onclick="this.nextElementSibling.classList.toggle('open')">
+          <span>VITAMINE</span><span>▼</span>
+        </div>
+        <div class="micro-list" id="micro-vitamins"></div>
+      </div>
+
+      <div class="micro-group">
+        <div class="micro-header" onclick="this.nextElementSibling.classList.toggle('open')">
+          <span>MINERALSTOFFE</span><span>▼</span>
+        </div>
+        <div class="micro-list" id="micro-minerals"></div>
+      </div>
+
+      <div class="micro-group">
+        <div class="micro-header" onclick="this.nextElementSibling.classList.toggle('open')">
+          <span>SONSTIGE</span><span>▼</span>
+        </div>
+        <div class="micro-list" id="micro-other"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-history" class="hidden">
+    <h1 class="display" style="margin-bottom:12px;">VERLAUF</h1>
+    <div class="frame" style="text-align:center;color:var(--muted);padding:40px 14px;">Noch keine Daten.</div>
+  </div>
+
+  <div id="tab-profile" class="hidden">
+    <h1 class="display" style="margin-bottom:12px;">PROFIL</h1>
+    <div class="frame col">
+      <span class="eyebrow">KÖRPERDATEN</span>
+      <div class="input-group"><label>Gewicht (kg)</label><input type="number" id="pWeight" onchange="saveProfile()"></div>
+      <div class="input-group"><label>Körperfett (kg)</label><input type="number" id="pFat" onchange="saveProfile()"></div>
+      <div class="input-group"><label>Größe (cm)</label><input type="number" id="pHeight" onchange="saveProfile()"></div>
+      <div class="input-group"><label>Alter</label><input type="number" id="pAge" onchange="saveProfile()"></div>
+      <div class="input-group"><label>Geschlecht</label>
+        <select id="pGender" onchange="saveProfile()"><option value="m">Männlich</option><option value="w">Weiblich</option></select>
+      </div>
+    </div>
+    <div class="frame col" style="background:var(--lime-tint);">
+      <span class="eyebrow" style="color:var(--ink);">BERECHNETE ZIELE</span>
+      <div class="row mono" style="font-size:13px;"><span>Grundumsatz:</span> <b id="calcBmr">0 kcal</b></div>
+      <div class="row mono" style="font-size:13px;"><span>Gesamtbedarf:</span> <b id="calcTdee">0 kcal</b></div>
+      <div class="row mono" style="font-size:13px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);"><span>Kalorienziel:</span> <b id="calcTargetCal">0 kcal</b></div>
+      <div class="row mono" style="font-size:13px;"><span>Eiweißziel:</span> <b id="calcTargetProt">0 g</b></div>
+    </div>
+    <div class="frame col">
+      <span class="eyebrow">ZIEL</span>
+      <select id="pGoal" onchange="saveProfile()" style="padding:10px;border:1px solid var(--line);">
+        <option value="halten">Gewicht halten</option><option value="abnehmen">Abnehmen</option>
+        <option value="aufbauen">Muskelaufbau</option><option value="zunehmen">Zunehmen</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div id="bottomNav">
+  <button onclick="switchTab('home')" id="nav-home" class="active">ÜBERSICHT</button>
+  <button onclick="switchTab('history')" id="nav-history">VERLAUF</button>
+  <button onclick="switchTab('profile')" id="nav-profile">PROFIL</button>
+</div>
+
+<div id="modal" class="hidden">
+  <div class="header">
+    <h1 class="display" style="font-size:24px;margin:0;">ESSEN</h1>
+    <button class="btn" style="background:var(--track);color:var(--ink);" onclick="closeModal()">ABBRECHEN</button>
+  </div>
+  <div class="search-wrap">
+    <input type="text" id="foodSearch" class="search-input" placeholder="Suche (z.B. Apfel)..." oninput="searchFood(this.value)">
+  </div>
+  <div class="list" id="searchResults">
+    <div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Tippe, um zu suchen...</div>
+  </div>
+</div>
+
+<div id="scannerModal" class="hidden">
+  <div style="padding:20px; color:#fff; display:flex; justify-content:space-between; align-items:center;">
+    <span>Barcode scannen...</span>
+    <button class="btn" style="background:var(--pink);" onclick="closeScanner()">X</button>
+  </div>
+  <div id="reader"></div>
+</div>
+
+<script>
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('todayDate').textContent = new Date().toLocaleDateString('de-DE', {weekday:'long', day:'2-digit', month:'short'}).toUpperCase();
+
+let profile = JSON.parse(localStorage.getItem('essenlog_profile')) || { weight: 87.3, fat: 17.5, height: 180, age: 17, gender: 'm', goal: 'halten' };
+let steps = JSON.parse(localStorage.getItem('essenlog_steps')) || { date: today, count: 0 };
+let todayMeals = JSON.parse(localStorage.getItem('essenlog_meals_' + today)) || [];
+let blsData = [];
+
+fetch('./bls.json')
+  .then(response => response.json())
+  .then(data => { blsData = data; console.log("BLS Daten geladen"); })
+  .catch(err => console.warn("bls.json nicht gefunden (evtl. CORS lokal)"));
+
+function init() {
+  document.getElementById('pWeight').value = profile.weight || '';
+  document.getElementById('pFat').value = profile.fat || '';
+  document.getElementById('pHeight').value = profile.height || '';
+  document.getElementById('pAge').value = profile.age || '';
+  document.getElementById('pGender').value = profile.gender || 'm';
+  document.getElementById('pGoal').value = profile.goal || 'halten';
+  document.getElementById('stepInput').value = steps.date === today ? (steps.count || '') : '';
+  calcAll(); renderMeals(); renderMicros();
+}
+
+function calcAll() {
+  let stepCount = Number(steps.count) || 0;
+  let factor = stepCount >= 10000 ? 1.65 : stepCount >= 7500 ? 1.55 : stepCount >= 5000 ? 1.45 : 1.375;
+  document.getElementById('stepFactor').textContent = `Faktor: ${factor.toFixed(2)} (${stepCount} Schritte)`;
+
+  let w = Number(profile.weight) || 0, f = Number(profile.fat) || 0, lbm = w - f;
+  let bmr = lbm > 0 ? 370 + (21.6 * lbm) : ((10*w) + (6.25*(Number(profile.height)||0)) - (5*(Number(profile.age)||0)) + (profile.gender === 'm' ? 5 : -161));
+  let tdee = Math.round(bmr * factor);
+
+  let targetCal = tdee, protFactor = 1.8;
+  if (profile.goal === 'abnehmen') { targetCal = Math.round(tdee * 0.85); protFactor = 2.2; }
+  else if (profile.goal === 'aufbauen') { targetCal = Math.round(tdee * 1.10); protFactor = 2.0; }
+  let targetProt = Math.round(w * protFactor);
+  
+  document.getElementById('calcBmr').textContent = Math.round(bmr) + ' kcal';
+  document.getElementById('calcTdee').textContent = tdee + ' kcal';
+  document.getElementById('calcTargetCal').textContent = targetCal + ' kcal';
+  document.getElementById('calcTargetProt').textContent = targetProt + ' g';
+
+  let sumCal = 0, sumProt = 0;
+  todayMeals.forEach(m => { sumCal += m.cal || 0; sumProt += m.prot || 0; });
+
+  document.getElementById('calCurrent').innerHTML = Math.round(sumCal) + ` <span class="mono" style="font-size:13px;color:var(--muted);">/ ${targetCal} KCAL</span>`;
+  document.getElementById('calRemaining').textContent = `${Math.max(0, Math.round(targetCal - sumCal))} offen`;
+  document.getElementById('calBar').style.width = Math.min(100, (sumCal / targetCal) * 100) + '%';
+
+  document.getElementById('protCurrent').innerHTML = Math.round(sumProt) + ` <span class="mono" style="font-size:13px;color:var(--muted);">/ ${targetProt} G</span>`;
+  document.getElementById('protRemaining').textContent = `${Math.max(0, Math.round(targetProt - sumProt))} g offen`;
+  document.getElementById('protBar').style.width = Math.min(100, (sumProt / targetProt) * 100) + '%';
+}
+
+function saveProfile() {
+  profile = { weight: Number(document.getElementById('pWeight').value), fat: Number(document.getElementById('pFat').value), height: Number(document.getElementById('pHeight').value), age: Number(document.getElementById('pAge').value), gender: document.getElementById('pGender').value, goal: document.getElementById('pGoal').value };
+  localStorage.setItem('essenlog_profile', JSON.stringify(profile)); calcAll();
+}
+
+function saveSteps(val) {
+  steps = { date: today, count: Number(val) }; localStorage.setItem('essenlog_steps', JSON.stringify(steps)); calcAll();
+}
+
+function renderMeals() {
+  const list = document.getElementById('mealList');
+  if (todayMeals.length === 0) { list.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center;padding:10px;">Noch nichts gegessen.</div>'; return; }
+  list.innerHTML = todayMeals.map((m, index) => `
+    <div class="meal-item">
+      <div><div class="name">${m.name} (${m.grams}g)</div><div class="macros">${Math.round(m.cal)} kcal · ${m.prot.toFixed(1)}g P</div></div>
+      <button style="background:none;border:none;color:var(--pink);font-size:20px;cursor:pointer;" onclick="removeMeal(${index})">&times;</button>
+    </div>`).join('');
+}
+
+function removeMeal(index) { todayMeals.splice(index, 1); localStorage.setItem('essenlog_meals_' + today, JSON.stringify(todayMeals)); renderMeals(); calcAll(); renderMicros(); }
+
+function renderMicros() {
+  const vitNames = { vitA: 'Vit A', vitD: 'Vit D', vitE: 'Vit E', vitK: 'Vit K', vitB1: 'Vit B1', vitB2: 'Vit B2', vitB3: 'Vit B3', vitB5: 'Vit B5', vitB6: 'Vit B6', vitB7: 'Vit B7', folat: 'Folat', vitB12: 'Vit B12', vitC: 'Vit C' };
+  const minNames = { calcium: 'Calcium', magnesium: 'Magnesium', kalium: 'Kalium', natrium: 'Natrium', eisen: 'Eisen', zink: 'Zink', jod: 'Jod', kupfer: 'Kupfer', mangan: 'Mangan', phosphor: 'Phosphor', chlorid: 'Chlorid', fluorid: 'Fluorid', chrom: 'Chrom', molybdän: 'Molybdän' };
+  const othNames = { omega3: 'Omega-3', epa: 'EPA', dha: 'DHA' };
+
+  function sumKey(key) { return todayMeals.reduce((sum, m) => sum + ((m[key] || 0) * (m.grams / 100)), 0); }
+
+  function buildList(containerId, names, unit) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = Object.entries(names).map(([key, label]) => {
+      const val = sumKey(key);
+      if (val === 0) return ''; // Nur anzeigen, wenn was da ist
+      const pct = Math.min(100, (val / 100) * 100); // Placeholder: 100 als 100% angenommen
+      return `<div class="micro-item"><span>${label}</span><div class="bar"><i style="width:${pct}%;background:var(--sky);"></i></div><b>${val.toFixed(1)}${unit}</b></div>`;
+    }).join('');
+  }
+  buildList('micro-vitamins', vitNames, '');
+  buildList('micro-minerals', minNames, '');
+  buildList('micro-other', othNames, 'g');
+}
+
+function openModal() { document.getElementById('modal').classList.remove('hidden'); document.getElementById('foodSearch').value = ''; document.getElementById('searchResults').innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Tippe, um zu suchen...</div>'; document.getElementById('foodSearch').focus(); }
+function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+function searchFood(query) {
+  const resultsDiv = document.getElementById('searchResults');
+  if (blsData.length === 0) { resultsDiv.innerHTML = '<div style="color:var(--pink);padding:20px;text-align:center;">Bitte lade zuerst die bls.json hoch.</div>'; return; }
+  if (query.length < 2) { resultsDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Mindestens 2 Buchstaben...</div>'; return; }
+  
+  const results = blsData.filter(item => item.name.toLowerCase().includes(query.toLowerCase())).slice(0, 20);
+  if (results.length === 0) { resultsDiv.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Nichts gefunden.</div>'; return; }
+
+  resultsDiv.innerHTML = results.map(item => `
+    <div class="food-item" onclick="promptAmount('${item.id}')">
+      <div class="name">${item.name}</div><div class="info">${item.kcal ? Math.round(item.kcal) : '?'} kcal / 100g</div>
+    </div>`).join('');
+}
+
+function promptAmount(id) {
+  const food = blsData.find(f => f.id === id); if (!food) return;
+  const gramsStr = prompt(`Wie viel Gramm von "${food.name}"?`, "100"); if (!gramsStr) return;
+  const grams = parseFloat(gramsStr.replace(',', '.')); if (isNaN(grams) || grams <= 0) return;
+  
+  const newMeal = { id: food.id, name: food.name, grams: grams, cal: (food.kcal || 0) * (grams/100), prot: (food.prot || 0) * (grams/100) };
+  
+  // Mikros für die Mahlzeit mitspeichern
+  ['vitA','vitD','vitE','vitK','vitB1','vitB2','vitB3','vitB5','vitB6','vitB7','folat','vitB12','vitC','calcium','magnesium','kalium','natrium','eisen','zink','jod','kupfer','mangan','phosphor','chlorid','fluorid','chrom','molybdän','omega3','epa','dha'].forEach(k => {
+    newMeal[k] = food[k] || 0;
+  });
+
+  todayMeals.push(newMeal);
+  localStorage.setItem('essenlog_meals_' + today, JSON.stringify(todayMeals));
+  closeModal(); renderMeals(); calcAll(); renderMicros();
+}
+
+function switchTab(tab) {
+  ['home', 'history', 'profile'].forEach(t => {
+    document.getElementById('tab-' + t).classList.add('hidden'); document.getElementById('nav-' + t).classList.remove('active');
+  });
+  document.getElementById('tab-' + tab).classList.remove('hidden'); document.getElementById('nav-' + tab).classList.add('active');
+}
+
+/* === BARCODE SCANNER === */
+let html5QrCode = null;
+
+function startScanner() {
+  document.getElementById('scannerModal').classList.remove('hidden');
+  
+  html5QrCode = new Html5Qrcode("reader");
+  const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+  html5QrCode.start(
+    { facingMode: "environment" },
+    config,
+    (decodedText, decodedResult) => {
+      // Erfolgreich gescannt
+      html5QrCode.stop().then((ignore) => {
+        document.getElementById('scannerModal').classList.add('hidden');
+        fetchOpenFoodFacts(decodedText);
+      }).catch((err) => console.log("Stop failed", err));
+    },
+    (errorMessage) => { /* Ignorieren */ }
+  ).catch((err) => {
+    alert("Kamera konnte nicht gestartet werden. Erlaube den Zugriff in den Browser-Einstellungen.");
+    document.getElementById('scannerModal').classList.add('hidden');
+  });
+}
+
+function closeScanner() {
+  if (html5QrCode) {
+    html5QrCode.stop().then(() => {
+      document.getElementById('scannerModal').classList.add('hidden');
+    }).catch(e => console.log(e));
+  } else {
+    document.getElementById('scannerModal').classList.add('hidden');
+  }
+}
+
+async function fetchOpenFoodFacts(barcode) {
+  const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+  const data = await res.json();
+  
+  if (data.status === 1 && data.product) {
+    const p = data.product;
+    const name = p.product_name_de || p.product_name || "Unbekanntes Produkt";
+    const kcal = p.nutriments['energy-kcal_100g'] || 0;
+    const prot = p.nutriments.proteins_100g || 0;
+    
+    const gramsStr = prompt(`Gefunden: ${name}\n${Math.round(kcal)} kcal / 100g\n\nWie viel Gramm?`, "100");
+    if (!gramsStr) return;
+    const grams = parseFloat(gramsStr.replace(',', '.'));
+    
+    const newMeal = { id: barcode, name: name, grams: grams, cal: kcal * (grams/100), prot: prot * (grams/100) };
+    
+    // Bei OFF haben wir keine Mikros, also 0 setzen
+    todayMeals.push(newMeal);
+    localStorage.setItem('essenlog_meals_' + today, JSON.stringify(todayMeals));
+    renderMeals(); calcAll(); renderMicros();
+    
+  } else {
+    alert("Produkt nicht in der Open Food Facts Datenbank gefunden.");
+  }
+}
+
+init();
+</script>
+</body>
+</html>
