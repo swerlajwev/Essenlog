@@ -365,11 +365,12 @@
     </div>
     <div class="frame col">
       <span class="eyebrow">BACKUP</span>
-      <div class="note">Alle Daten liegen nur auf diesem Gerät. Exportiere sie regelmäßig.</div>
+      <div class="note" id="backupInfo"></div>
       <div class="btn-group">
         <button class="btn btn-outline" style="flex:1;" onclick="exportData()">EXPORT</button>
         <button class="btn btn-outline" style="flex:1;" onclick="document.getElementById('importFile').click()">IMPORT</button>
       </div>
+      <div class="note">Beim Import wird nichts gelöscht oder überschrieben: Fehlendes wird ergänzt, gleiche Einträge nicht doppelt angelegt.</div>
       <input type="file" id="importFile" accept="application/json,.json" class="hidden" onchange="importData(this)">
     </div>
     <div class="note" style="padding-bottom:12px;">
@@ -1908,12 +1909,59 @@ function changeTheme(mode) { jset('essenlog_theme', mode); applyTheme(); }
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (jget('essenlog_theme', 'auto') === 'auto') applyTheme(); });
 
 /* ================= Backup / PDF ================= */
+const bkKeys = () => { const o = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('essenlog_')) o.push(k); } return o; };
+const bkFmtD = d => d.split('-').reverse().join('.');
+function bkDays() {
+  return bkKeys().filter(k => k.startsWith('essenlog_meals_')).map(k => k.slice(15))
+    .filter(d => jget('essenlog_meals_' + d, []).length > 0).sort();
+}
+function renderBackupInfo() {
+  const el = $('backupInfo'); if (!el) return;
+  const days = bkDays(); let meals = 0; days.forEach(d => meals += jget('essenlog_meals_' + d, []).length);
+  let bytes = 0; bkKeys().forEach(k => bytes += (k.length + (localStorage.getItem(k) || '').length) * 2);
+  const prod = jget('essenlog_custom_foods', []).filter(f => !f.isRecipe).length;
+  const rec = jget('essenlog_recipes', []).length;
+  el.textContent = (days.length ? `${days.length} Tage mit Einträgen (${bkFmtD(days[0])} bis ${bkFmtD(days[days.length - 1])}), ${meals} Mahlzeiten` : 'Noch keine Mahlzeiten')
+    + `, ${prod} eigene Produkte, ${rec} Rezepte. Speicher: ca. ${Math.max(1, Math.round(bytes / 1024))} KB von ca. 5000 KB.`;
+}
 function exportData() {
+  const scope = 'all', from = null, to = null;
+  const inRange = d => (!from || d >= from) && (!to || d <= to);
   const data = {};
-  for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('essenlog_')) data[k] = localStorage.getItem(k); }
-  const blob = new Blob([JSON.stringify({ app: 'essenlog', exported: new Date().toISOString(), data }, null, 1)], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `essenlog-backup-${today}.json`;
+  bkKeys().forEach(k => {
+    const v = localStorage.getItem(k);
+    if (k.startsWith('essenlog_meals_')) { if (scope !== 'products' && inRange(k.slice(15))) data[k] = v; }
+    else if (k === 'essenlog_stepslog' || k === 'essenlog_weights') {
+      if (scope === 'products') return;
+      try { const o = JSON.parse(v), r = {}; Object.keys(o).forEach(d => { if (inRange(d)) r[d] = o[d]; }); if (Object.keys(r).length) data[k] = JSON.stringify(r); } catch (e) {}
+    }
+    else if (k === 'essenlog_custom_foods' || k === 'essenlog_recipes') data[k] = v;
+    else if (scope === 'all') data[k] = v;
+  });
+  const nDays = Object.keys(data).filter(k => k.startsWith('essenlog_meals_')).length;
+  if (!nDays && scope !== 'products' && scope !== 'all') { showDialog('Hinweis', 'Im gewählten Zeitraum gibt es keine Einträge.', [{ text: 'OK', primary: true }]); return; }
+  const label = scope === 'all' ? 'alles' : scope === 'products' ? 'produkte' : (from || 'start') + '_bis_' + (to || 'heute');
+  const blob = new Blob([JSON.stringify({ app: 'essenlog', exported: new Date().toISOString(), range: { scope, from, to }, data }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `essenlog-${label}-${today}.json`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  showToast(`Backup erstellt (${nDays} Tage)`);
+}
+function bkMerge(k, v) {
+  const old = localStorage.getItem(k);
+  if (old == null) { localStorage.setItem(k, v); return; }
+  try {
+    const o = JSON.parse(old), n = JSON.parse(v);
+    if (k.startsWith('essenlog_meals_')) {
+      const seen = new Set(o.map(x => JSON.stringify(x)));
+      localStorage.setItem(k, JSON.stringify(o.concat(n.filter(x => !seen.has(JSON.stringify(x))))));
+    } else if (k === 'essenlog_custom_foods' || k === 'essenlog_recipes') {
+      const ids = new Set(n.map(x => x.id));
+      localStorage.setItem(k, JSON.stringify(o.filter(x => !ids.has(x.id)).concat(n)));
+    } else if (k === 'essenlog_stepslog' || k === 'essenlog_weights') {
+      localStorage.setItem(k, JSON.stringify(Object.assign({}, o, n)));
+    }
+    /* Profil, Einstellungen usw.: vorhandene Werte bleiben */
+  } catch (e) {}
 }
 function importData(inp) {
   const file = inp.files[0]; inp.value = ''; if (!file) return;
@@ -1922,21 +1970,24 @@ function importData(inp) {
     try {
       const j = JSON.parse(r.result);
       if (j.app !== 'essenlog' || !j.data) throw 0;
-      showDialog('Frage', 'Backup einspielen?\n\nVorhandene Daten mit gleichem Datum werden überschrieben.', [
+      const e = Object.entries(j.data).filter(([k]) => k.startsWith('essenlog_'));
+      const days = e.filter(([k]) => k.startsWith('essenlog_meals_')).map(([k]) => k.slice(15)).sort();
+      let meals = 0; e.forEach(([k, v]) => { if (k.startsWith('essenlog_meals_')) { try { meals += JSON.parse(v).length; } catch (x) {} } });
+      let prods = 0; try { prods = JSON.parse(j.data.essenlog_custom_foods || '[]').length; } catch (x) {}
+      const parts = [];
+      if (days.length) parts.push(`${days.length} Tage (${bkFmtD(days[0])} bis ${bkFmtD(days[days.length - 1])}) mit ${meals} Mahlzeiten`);
+      if (prods) parts.push(`${prods} Produkte/Rezepte`);
+      if (!parts.length) parts.push('nur Einstellungen');
+      const summary = parts.join(', ');
+      showDialog('Backup einspielen?', `Enthält: ${summary}.\n\nBestehende Daten bleiben erhalten. Fehlendes wird ergänzt, gleiche Einträge werden nicht doppelt angelegt.`, [
         { text: 'Abbrechen' },
         { text: 'OK', primary: true, action: () => {
-          Object.entries(j.data).forEach(([k, v]) => {
-            if (!k.startsWith('essenlog_')) return;
-            if (k === 'essenlog_custom_foods') {
-              try { const old = JSON.parse(localStorage.getItem(k) || '[]'), nw = JSON.parse(v), ids = new Set(nw.map(x => x.id));
-                v = JSON.stringify(old.filter(x => !ids.has(x.id)).concat(nw)); } catch (e) {}
-            }
-            localStorage.setItem(k, v);
-          });
+          e.forEach(([k, v]) => bkMerge(k, v));
+          try { sessionStorage.setItem('essenlog_importmsg', 'Importiert: ' + summary); } catch (x) {}
           location.reload();
         } }
       ]);
-    } catch (e) { showDialog('Fehler', 'Ungültige Backup-Datei.', [{ text: 'OK', primary: true }]); }
+    } catch (err) { showDialog('Fehler', 'Ungültige Backup-Datei.', [{ text: 'OK', primary: true }]); }
   };
   r.readAsText(file);
 }
@@ -1990,6 +2041,7 @@ function switchTab(tab) {
   $('tab-' + tab).classList.remove('hidden'); $('nav-' + tab).classList.add('active');
   if (tab === 'history') renderHistory();
   if (tab === 'recipes') renderRecipes();
+  if (tab === 'profile') renderBackupInfo();
   window.scrollTo(0, 0);
 }
 
@@ -2010,6 +2062,8 @@ function init() {
   updateDietUI();
   renderRecipes();
   refresh();
+  renderBackupInfo();
+  try { const m = sessionStorage.getItem('essenlog_importmsg'); if (m) { sessionStorage.removeItem('essenlog_importmsg'); setTimeout(() => showToast(m), 400); } } catch (e) {}
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && dstr(new Date()) !== today) location.reload(); });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
