@@ -208,7 +208,6 @@ let todayMeals = JSON.parse(localStorage.getItem('essenlog_meals_' + today)) || 
 let blsData = [];
 let customFoods = JSON.parse(localStorage.getItem('essenlog_custom_foods')) || [];
 
-// BLS Daten laden
 fetch('./bls.json')
   .then(response => response.json())
   .then(data => { blsData = data; console.log("BLS Daten geladen"); })
@@ -331,8 +330,8 @@ function promptAmount(id) {
   closeModal(); renderMeals(); calcAll(); renderMicros();
 }
 
-// --- EIGENE PRODUKTE (Manuelle Eingabe) ---
-function openManualAdd() {
+// --- MANUELLE EINGABE & LERNEN ---
+function openManualAdd(barcode = null) {
   closeModal();
   const name = prompt("Produktname:");
   if (!name) return;
@@ -344,7 +343,8 @@ function openManualAdd() {
   if (prot === null) return;
 
   const newFood = {
-    id: 'custom_' + Date.now(),
+    id: barcode || ('custom_' + Date.now()),
+    barcode: barcode,
     name: name,
     kcal: parseFloat(kcal.replace(',', '.')) || 0,
     prot: parseFloat(prot.replace(',', '.')) || 0
@@ -353,9 +353,14 @@ function openManualAdd() {
   customFoods.push(newFood);
   localStorage.setItem('essenlog_custom_foods', JSON.stringify(customFoods));
   
-  alert("Produkt gespeichert! Du findest es jetzt in der Suche.");
-  openModal(); 
-  searchFood(newFood.name); // Zeigt das neue Produkt direkt an
+  alert("Produkt gespeichert! Es ist ab jetzt in deiner Suche.");
+  
+  if (barcode) {
+    promptAmount(newFood.id); // Direkt nach Gramm fragen, wenn es vom Scanner kam
+  } else {
+    openModal(); 
+    searchFood(newFood.name); 
+  }
 }
 
 function switchTab(tab) {
@@ -401,6 +406,26 @@ function closeScanner() {
 }
 
 async function fetchOpenFoodFacts(barcode) {
+  // 1. ZUERST IN DER EIGENEN GELERNTEN DATENBANK SUCHEN
+  const customMatch = customFoods.find(f => f.barcode === barcode || f.id === barcode);
+  
+  if (customMatch) {
+    const gramsStr = prompt(`Gefunden (Deine Datenbank): ${customMatch.name}\n${Math.round(customMatch.kcal)} kcal / 100g\n\nWie viel Gramm?`, "100");
+    if (!gramsStr) return;
+    const grams = parseFloat(gramsStr.replace(',', '.'));
+    
+    const newMeal = { id: customMatch.id, name: customMatch.name, grams: grams, cal: customMatch.kcal * (grams/100), prot: customMatch.prot * (grams/100) };
+    ['vitA','vitD','vitE','vitK','vitB1','vitB2','vitB3','vitB5','vitB6','vitB7','folat','vitB12','vitC','calcium','magnesium','kalium','natrium','eisen','zink','jod','kupfer','mangan','phosphor','chlorid','fluorid','chrom','molybdän','omega3','epa','dha'].forEach(k => {
+      newMeal[k] = customMatch[k] || 0;
+    });
+
+    todayMeals.push(newMeal);
+    localStorage.setItem('essenlog_meals_' + today, JSON.stringify(todayMeals));
+    renderMeals(); calcAll(); renderMicros();
+    return; // Beenden, da wir es in der lokalen DB gefunden haben
+  }
+
+  // 2. WENN NICHT IN EIGENER DB, DANN OPEN FOOD FACTS ABFRAGEN
   try {
     const res = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
     const data = await res.json();
@@ -411,24 +436,29 @@ async function fetchOpenFoodFacts(barcode) {
       const kcal = p.nutriments['energy-kcal_100g'] || 0;
       const prot = p.nutriments.proteins_100g || 0;
       
-      const gramsStr = prompt(`Gefunden: ${name}\n${Math.round(kcal)} kcal / 100g\n\nWie viel Gramm?`, "100");
+      // 3. AUTOMATISCH IN EIGENE DB SPEICHERN FÜR DAS NÄCHSTE MAL
+      const newFood = { id: barcode, barcode: barcode, name: name, kcal: kcal, prot: prot };
+      customFoods.push(newFood);
+      localStorage.setItem('essenlog_custom_foods', JSON.stringify(customFoods));
+
+      const gramsStr = prompt(`Gefunden (Open Food Facts): ${name}\n${Math.round(kcal)} kcal / 100g\n\nWie viel Gramm?`, "100");
       if (!gramsStr) return;
       const grams = parseFloat(gramsStr.replace(',', '.'));
       
       const newMeal = { id: barcode, name: name, grams: grams, cal: kcal * (grams/100), prot: prot * (grams/100) };
-      
       todayMeals.push(newMeal);
       localStorage.setItem('essenlog_meals_' + today, JSON.stringify(todayMeals));
       renderMeals(); calcAll(); renderMicros();
       
     } else {
-      const manual = confirm("Produkt nicht in der Open Food Facts-Datenbank gefunden.\n\nMöchtest du die Nährwerte manuell eingeben?");
+      // 4. WENN AUCH OFF NICHTS HAT: MANUELLE EINGABE
+      const manual = confirm("Produkt nicht in der Open Food Facts-Datenbank gefunden.\n\nMöchtest du die Nährwerte manuell eingeben? Sie werden dann für das nächste Mal gespeichert.");
       if (manual) {
-        openManualAdd(); // Ruft die manuelle Eingabe auf
+        openManualAdd(barcode); 
       }
     }
   } catch (err) {
-    alert("Fehler bei der Abfrage. Bitte versuche es später noch einmal.");
+    alert("Fehler bei der Internet-Abfrage. Bitte prüfe deine Verbindung.");
   }
 }
 
