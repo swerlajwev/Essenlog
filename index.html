@@ -6,6 +6,12 @@
 <title>Essenlog</title>
 <meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="48x48" href="./favicon-48.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Essenlog">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
@@ -181,8 +187,7 @@
       <div><div class="eyebrow" id="todayDate">HEUTE</div><h1 class="display">ÜBERSICHT</h1></div>
       <div class="btn-group">
         <button class="btn btn-outline" style="padding: 0 12px; display: flex; align-items: center; justify-content: center;" onclick="startScanner()" aria-label="Barcode scannen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg></button>
-        <button class="btn btn-outline" style="padding: 0 12px; font-size:18px;" onclick="openDrinkModal()" aria-label="Getränk">🥤</button>
-        <button class="btn" onclick="openModal()">+ ESSEN</button>
+        <button class="btn" onclick="openModal()">+ HINZUFÜGEN</button>
       </div>
     </div>
 
@@ -383,14 +388,14 @@
 
 <div id="modal" class="hidden">
   <div class="header">
-    <h1 class="display" style="font-size:24px;margin:0;">ESSEN</h1>
+    <h1 class="display" style="font-size:24px;margin:0;">HINZUFÜGEN</h1>
     <button class="btn btn-grey" onclick="closeModal()">ABBRECHEN</button>
   </div>
   <div class="search-wrap">
     <div class="chips" style="margin-bottom:0;">
       <button class="chip" id="filterAll" onclick="setSearchFilter('all')" style="background:var(--lime);">ALLE</button>
-      <button class="chip" id="filterDrinks" onclick="setSearchFilter('drinks')">GETRÄNKE</button>
-      <button class="chip" id="filterFood" onclick="setSearchFilter('food')">LEBENSMITTEL</button>
+      <button class="chip" id="filterFood" onclick="setSearchFilter('food')">ESSEN</button>
+      <button class="chip" id="filterDrinks" onclick="setSearchFilter('drinks')">TRINKEN</button>
     </div>
     <div class="chips" style="margin-bottom:0;">
       <button class="chip" id="dietVegan" onclick="toggleDiet('vegan')">VEGAN</button>
@@ -937,7 +942,7 @@ fetch('./BLS_4_0_Daten_2025_DE.csv')
       console.log('[BLS] CSV geladen: ' + parsedData.length + ' Einträge.');
     } else {
       blsData = FALLBACK_DATA;
-      $('app').insertAdjacentHTML('afterbegin', '<div id="blsWarn">⚠ BLS-CSV lieferte 0 Einträge – nur 3 Testdaten aktiv.</div>');
+      $('app').insertAdjacentHTML('afterbegin', '<div id="blsWarn">BLS-CSV lieferte 0 Einträge – nur 3 Testdaten aktiv.</div>');
     }
     buildIndex();
     if (!$('modal').classList.contains('hidden') && !$('foodSearch').value) searchFood('');
@@ -946,10 +951,10 @@ fetch('./BLS_4_0_Daten_2025_DE.csv')
     console.warn('[BLS] CSV nicht geladen:', err);
     blsData = FALLBACK_DATA;
     buildIndex();
-    $('app').insertAdjacentHTML('afterbegin', '<div id="blsWarn">⚠ BLS-CSV nicht geladen (Datei fehlt?) – nur 3 Testdaten aktiv.</div>');
+    $('app').insertAdjacentHTML('afterbegin', '<div id="blsWarn">BLS-CSV nicht geladen (Datei fehlt?) – nur 3 Testdaten aktiv.</div>');
   });
 
-['products.json', 'supermarkt.json'].forEach(fn => fetch('./' + fn).then(r => r.ok ? r.json() : []).then(d => { if (Array.isArray(d) && d.length) { extraFoods = extraFoods.concat(d); buildIndex(); } }).catch(() => {}));
+['supermarkt.json'].forEach(fn => fetch('./' + fn).then(r => r.ok ? r.json() : []).then(d => { if (Array.isArray(d) && d.length) { extraFoods = extraFoods.concat(d); buildIndex(); } }).catch(() => {}));
 
 /* ================= Berechnungen ================= */
 function getTargets(stepCount) {
@@ -1040,7 +1045,7 @@ function calcAll() {
   if (progEl) {
     const tw = Number(profile.targetWeight);
     if (!tw || !profile.weight) progEl.textContent = 'Zielgewicht im Profil eintragen für eine Prognose.';
-    else if (Math.abs(tw - profile.weight) < 0.1) progEl.textContent = 'Zielgewicht erreicht. 👍';
+    else if (Math.abs(tw - profile.weight) < 0.1) progEl.textContent = 'Zielgewicht erreicht.';
     else {
       const deficit = T.tdee - T.cal;
       const diff = profile.weight - tw;
@@ -1144,7 +1149,7 @@ function renderExtended() {
   const o3 = t.omega3 || 0, o6 = t.omega6 || 0;
   if (o6 > 0) {
     const r = o3 / o6;
-    const warn = r < 0.2 ? ' ⚠ zu wenig ω3' : r > 0.5 ? ' (viel ω3)' : ' ✓';
+    const warn = r < 0.2 ? ' (zu wenig ω3)' : r > 0.5 ? ' (viel ω3)' : ' (gut)';
     ratioHtml = `<div class="note" style="margin-top:6px;padding:6px 0;border-top:1px dashed var(--track);"><b>ω3 : ω6 =</b> 1 : ${(1 / r).toFixed(1)} <span style="color:${r < 0.2 ? 'var(--pink)' : 'var(--muted)'}">${warn}</span> <span style="color:var(--muted)">(Ziel 1:2 bis 1:5)</span></div>`;
   }
   const html = EXTENDED.map(e => {
@@ -1194,12 +1199,6 @@ function openModal() {
   $('modal').classList.remove('hidden');
   $('foodSearch').value = '';
   searchFood('');
-  $('foodSearch').focus();
-}
-function openDrinkModal() {
-  $('modal').classList.remove('hidden');
-  $('foodSearch').value = '';
-  setSearchFilter('drinks');
   $('foodSearch').focus();
 }
 function closeModal() { $('modal').classList.add('hidden'); pickMode = null; }
@@ -1670,7 +1669,7 @@ function renderHistory() {
   const gl = Object.values(gapAcc).map(a => ({ x: a.x, avg: a.sum / a.n, n: a.n })).filter(a => a.avg < 0.5).sort((a, b) => a.avg - b.avg).slice(0, 8);
   $('histGaps').innerHTML = !gapDays ? '<div class="note">Noch keine Daten.</div>'
     : gl.length ? gl.map(a => `<div class="row mono" style="font-size:12px;"><span>${a.x.label}</span><span style="color:var(--pink)">Ø ${Math.round(a.avg * 100)} %</span></div>`).join('') + '<div class="note">Nur Tage mit erfassten Werten zählen.</div>'
-    : '<div class="note">Keine häufigen Lücken. 👍</div>';
+    : '<div class="note">Keine häufigen Lücken.</div>';
 }
 
 function toggleDayEdit(ds) {

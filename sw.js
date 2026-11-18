@@ -1,8 +1,8 @@
-const CACHE = 'essenlog-v3';
+const CACHE = 'essenlog-v5';
 const ASSETS = [
-  './index.html', './manifest.json',
+  './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-48.png', './favicon.ico',
   './BLS_4_0_Daten_2025_DE.csv',
-  './products.json', './supermarkt.json'
+  './supermarkt.json'
 ];
 
 self.addEventListener('install', e => {
