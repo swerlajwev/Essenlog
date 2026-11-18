@@ -414,11 +414,9 @@ let recentIds = jget('essenlog_recent', []);
 let blsSet = new Set(), blsData = [], foodMap = new Map(), extraFoods = [], extraByCode = new Map();
 let histDays = 7;
 
-// Fallback-Daten für sofortige Suche
-const FALLBACK_DATA = [
+// Falls die CSV nicht geladen werden kann (z.B. Offline), greift diese kleine Notfall-Liste
+let FALLBACK_DATA = [
     {"id":"C133000","name":"Hafer Flocken","kcal":347.9,"prot":13.22,"fat":6.65,"carb":53.3,"fib":10.98},
-    {"id":"E510000","name":"Vollkornteigwaren eifrei, roh","kcal":355.6,"prot":14.3,"fat":2.93,"carb":62.9,"fib":10.2},
-    {"id":"T102100","name":"Hering roh","kcal":149.8,"prot":17.2,"fat":9.01,"carb":0},
     {"id":"P100000","name":"Apfel frisch","kcal":52,"prot":0.3,"fat":0.2,"carb":11.4,"fib":2.4},
     {"id":"P100100","name":"Apfelwein","kcal":43.9,"prot":null,"fat":null,"carb":4,"fib":null}
 ];
@@ -445,11 +443,121 @@ function buildIndex() {
   customFoods.forEach(f => foodMap.set(f.id, f));
 }
 
-// Daten laden
-fetch('./bls.json').then(r => r.json()).then(d => { blsData = d; buildIndex(); }).catch(() => { 
-    blsData = FALLBACK_DATA; 
-    buildIndex(); 
-});
+// --- CSV PARSER FÜR DEINE BLS_4_0_Daten_2025_DE.csv ---
+function parseCSV(text) {
+    const result = [];
+    let row = [], current = '', inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        if (char === '"') { inQuotes = !inQuotes; } 
+        else if (char === ',' && !inQuotes) { row.push(current); current = ''; } 
+        else if ((char === '\n' || char === '\r') && !inQuotes) {
+            if (current !== '' || row.length > 0) { row.push(current); result.push(row); row = []; current = ''; }
+        } else { current += char; }
+    }
+    if (current) { row.push(current); result.push(row); }
+    return result;
+}
+
+function processCSVData(rows) {
+    if (rows.length < 2) return [];
+    const headers = rows[0];
+    
+    // Spalten anhand der Überschriften finden
+    const getIdx = (str) => headers.findIndex(h => h && h.includes(str));
+    const idxId = getIdx('BLS Code');
+    const idxName = getIdx('Lebensmittelbezeichnung');
+    const idxKcal = getIdx('ENERCC');
+    const idxProt = getIdx('PROT625');
+    const idxFat = getIdx('FAT Fett');
+    const idxCarb = getIdx('CHO Kohlenhydrate');
+    const idxFib = getIdx('FIBT');
+    const idxVitA = getIdx('VITA');
+    const idxVitD = getIdx('VITD');
+    const idxVitE = getIdx('VITE');
+    const idxVitK = getIdx('VITK');
+    const idxVitB1 = getIdx('THIA');
+    const idxVitB2 = getIdx('RIBF');
+    const idxVitB3 = getIdx('NIA Niacin');
+    const idxVitB5 = getIdx('PANTAC');
+    const idxVitB6 = getIdx('VITB6');
+    const idxVitB7 = getIdx('BIOT');
+    const idxFolat = getIdx('FOL Folat');
+    const idxVitB12 = getIdx('VITB12');
+    const idxVitC = getIdx('VITC');
+    const idxNatrium = getIdx('NA Natrium');
+    const idxChlorid = getIdx('CLD');
+    const idxKalium = getIdx('K Kalium');
+    const idxCalcium = getIdx('CA Calcium');
+    const idxMagnesium = getIdx('MG Magnesium');
+    const idxPhosphor = getIdx('P Phosphor');
+    const idxEisen = getIdx('FE Eisen');
+    const idxZink = getIdx('ZN Zink');
+    const idxJod = getIdx('ID Iodid');
+    const idxKupfer = getIdx('CU Kupfer');
+    const idxMangan = getIdx('MN Mangan');
+    const idxFluorid = getIdx('FD Fluorid');
+    const idxChrom = getIdx('CR Chrom');
+    const idxMolybdän = getIdx('MO Molybdän');
+    const idxOmega3 = getIdx('FAPUN3');
+    const idxEpa = getIdx('F20:5CN3');
+    const idxDha = getIdx('F22:6CN3');
+
+    const parsed = [];
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row[idxName]) continue; // Leere Zeile überspringen
+        
+        const getVal = (idx) => {
+            if (idx === -1 || !row[idx]) return null;
+            let v = row[idx].trim();
+            if (v === '-' || v.includes('<') || v === '') return null;
+            v = v.replace(',', '.');
+            const n = parseFloat(v);
+            return isNaN(n) ? null : n;
+        };
+
+        parsed.push({
+            id: row[idxId] || "custom_" + i,
+            name: row[idxName],
+            kcal: getVal(idxKcal),
+            prot: getVal(idxProt),
+            fat: getVal(idxFat),
+            carb: getVal(idxCarb),
+            fib: getVal(idxFib),
+            vitA: getVal(idxVitA), vitD: getVal(idxVitD), vitE: getVal(idxVitE), vitK: getVal(idxVitK),
+            vitB1: getVal(idxVitB1), vitB2: getVal(idxVitB2), vitB3: getVal(idxVitB3), vitB5: getVal(idxVitB5),
+            vitB6: getVal(idxVitB6), vitB7: getVal(idxVitB7), folat: getVal(idxFolat), vitB12: getVal(idxVitB12),
+            vitC: getVal(idxVitC), natrium: getVal(idxNatrium), chlorid: getVal(idxChlorid), kalium: getVal(idxKalium),
+            calcium: getVal(idxCalcium), magnesium: getVal(idxMagnesium), phosphor: getVal(idxPhosphor), eisen: getVal(idxEisen),
+            zink: getVal(idxZink), jod: getVal(idxJod), kupfer: getVal(idxKupfer), mangan: getVal(idxMangan),
+            fluorid: getVal(idxFluorid), chrom: getVal(idxChrom), molybdän: getVal(idxMolybdän),
+            omega3: getVal(idxOmega3), epa: getVal(idxEpa), dha: getVal(idxDha)
+        });
+    }
+    return parsed;
+}
+
+// Daten laden (CSV versuchen, sonst Fallback)
+fetch('./BLS_4_0_Daten_2025_DE.csv')
+    .then(r => { if(!r.ok) throw new Error('CSV nicht gefunden'); return r.text(); })
+    .then(text => {
+        const parsedData = processCSVData(parseCSV(text));
+        if (parsedData.length > 0) {
+            blsData = parsedData;
+            console.log("BLS CSV erfolgreich geladen: " + parsedData.length + " Einträge.");
+        } else {
+            blsData = FALLBACK_DATA;
+        }
+        buildIndex();
+        if ($('modal').classList.contains('hidden') === false && !$('foodSearch').value) searchFood(''); // Update falls offen
+    })
+    .catch(err => { 
+        console.warn('CSV nicht geladen, nutze Notfall-Daten.', err);
+        blsData = FALLBACK_DATA; 
+        buildIndex(); 
+    });
+
 ['products.json', 'supermarkt.json'].forEach(fn => fetch('./' + fn).then(r => r.ok ? r.json() : []).then(d => { if (Array.isArray(d) && d.length) { extraFoods = extraFoods.concat(d); buildIndex(); } }).catch(() => {}));
 
 /* ================= Berechnung ================= */
