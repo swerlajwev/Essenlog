@@ -998,7 +998,7 @@ function openManual(barcode) {
   closeModal();
   $('sheetTitle').textContent = 'EIGENES PRODUKT';
   ['mName', 'm_kcal', 'm_prot', 'm_fat', 'm_carb', 'm_fib'].forEach(i => $(i).value = '');
-  NUT.forEach(x => $('m_' + x.k).value = '');
+  NUT.forEach(x => { const el = $('m_' + x.k); if (el) el.value = ''; });
   
   $('amountForm').classList.add('hidden'); $('manualForm').classList.remove('hidden');
   sheetCtx = null;
@@ -1018,7 +1018,8 @@ function saveManual() {
   food.fib = num($('m_fib').value);
   
   NUT.forEach(x => {
-    food[x.k] = num($('m_' + x.k).value);
+    const el = $('m_' + x.k);
+    food[x.k] = el ? num(el.value) : null;
   });
 
   customFoods = customFoods.filter(f => f.id !== food.id).concat(food);
