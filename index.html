@@ -104,6 +104,14 @@
 
   #scannerModal{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:200;display:flex;flex-direction:column;}
   #reader {width:100%; flex:1;}
+
+  /* Custom Dialog (Ersetzt die hängenden Browser-Popups) */
+  #dialogOverlay {position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px;}
+  #dialogBox {background:#fff; border-radius:12px; padding:20px; max-width:340px; width:100%; box-shadow:0 10px 25px rgba(0,0,0,0.2);}
+  #dialogTitle {margin:0 0 10px 0; font-family:var(--font-d); font-size:22px; color:var(--ink);}
+  #dialogMessage {margin:0 0 20px 0; font-size:15px; line-height:1.5; color:var(--text); white-space:pre-wrap;}
+  .dialog-buttons {display:flex; justify-content:flex-end; gap:10px;}
+  .dialog-buttons button {height:40px; padding:0 20px; font-size:14px;}
 </style>
 </head>
 <body>
@@ -348,6 +356,18 @@
   <div id="reader"></div>
 </div>
 
+<!-- UNSICHTBARES DIALOG-FENSTER (Ersetzt alert/confirm) -->
+<div id="dialogOverlay" class="hidden">
+  <div id="dialogBox">
+    <h3 id="dialogTitle">Hinweis</h3>
+    <p id="dialogMessage"></p>
+    <div class="dialog-buttons">
+      <button id="dialogCancel" class="btn btn-grey" style="display:none;">Abbrechen</button>
+      <button id="dialogOk" class="btn">OK</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ================= Hilfsfunktionen ================= */
 const $ = id => document.getElementById(id);
@@ -355,11 +375,52 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp
 const dstr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const num = s => { const v = parseFloat(String(s).replace(',', '.')); return isNaN(v) ? null : v; };
 function jget(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
-function jset(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { alert('Speichern fehlgeschlagen (Speicher voll?).'); } }
+function jset(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { showAlert('Speichern fehlgeschlagen (Speicher voll?).'); } }
 function fmt(v) { return v >= 100 ? String(Math.round(v)) : v >= 1 ? String(Math.round(v * 10) / 10) : v.toFixed(2); }
 
 let today = dstr(new Date());
 $('todayDate').textContent = new Date().toLocaleDateString('de-DE', {weekday:'long', day:'2-digit', month:'short'}).toUpperCase();
+
+/* ================= Custom Dialog System (verhindert Hängen auf Handys) ================= */
+function showAlert(msg) {
+  return new Promise(resolve => {
+    const overlay = $('dialogOverlay');
+    $('dialogTitle').textContent = 'Hinweis';
+    $('dialogMessage').textContent = msg;
+    $('dialogCancel').style.display = 'none';
+    const okBtn = $('dialogOk');
+    okBtn.textContent = 'OK';
+    
+    overlay.classList.remove('hidden');
+    okBtn.onclick = () => {
+      overlay.classList.add('hidden');
+      resolve();
+    };
+  });
+}
+
+function showConfirm(msg) {
+  return new Promise(resolve => {
+    const overlay = $('dialogOverlay');
+    $('dialogTitle').textContent = 'Frage';
+    $('dialogMessage').textContent = msg;
+    const cancelBtn = $('dialogCancel');
+    cancelBtn.style.display = 'block';
+    const okBtn = $('dialogOk');
+    okBtn.textContent = 'OK';
+    
+    overlay.classList.remove('hidden');
+    
+    okBtn.onclick = () => {
+      overlay.classList.add('hidden');
+      resolve(true);
+    };
+    cancelBtn.onclick = () => {
+      overlay.classList.add('hidden');
+      resolve(false);
+    };
+  });
+}
 
 /* ================= Nährstoff-Definitionen ================= */
 const NUT = [
@@ -414,7 +475,7 @@ let recentIds = jget('essenlog_recent', []);
 let blsSet = new Set(), blsData = [], foodMap = new Map(), extraFoods = [], extraByCode = new Map();
 let histDays = 7;
 
-// Falls die CSV nicht geladen werden kann (z.B. Offline), greift diese kleine Notfall-Liste
+// Notfall-Liste falls CSV fehlt
 let FALLBACK_DATA = [
     {"id":"C133000","name":"Hafer Flocken","kcal":347.9,"prot":13.22,"fat":6.65,"carb":53.3,"fib":10.98},
     {"id":"P100000","name":"Apfel frisch","kcal":52,"prot":0.3,"fat":0.2,"carb":11.4,"fib":2.4},
@@ -550,7 +611,7 @@ fetch('./BLS_4_0_Daten_2025_DE.csv')
             blsData = FALLBACK_DATA;
         }
         buildIndex();
-        if ($('modal').classList.contains('hidden') === false && !$('foodSearch').value) searchFood(''); // Update falls offen
+        if (!$('modal').classList.contains('hidden') && !$('foodSearch').value) searchFood(''); 
     })
     .catch(err => { 
         console.warn('CSV nicht geladen, nutze Notfall-Daten.', err);
@@ -625,10 +686,21 @@ function renderMeals() {
     </div>`;
   }).join('');
 }
-$('mealList').addEventListener('click', e => {
+
+$('mealList').addEventListener('click', async e => {
   const ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]');
-  if (ed) { const i = +ed.dataset.edit; openAmount(foodForMeal(todayMeals[i]), i); }
-  else if (del) { const i = +del.dataset.del; if (confirm(`„${todayMeals[i].name}“ löschen?`)) { todayMeals.splice(i, 1); saveMeals(); refresh(); } }
+  if (ed) { 
+      const i = +ed.dataset.edit; 
+      openAmount(foodForMeal(todayMeals[i]), i); 
+  }
+  else if (del) { 
+      const i = +del.dataset.del; 
+      if (await showConfirm(`„${todayMeals[i].name}“ wirklich löschen?`)) { 
+          todayMeals.splice(i, 1); 
+          saveMeals(); 
+          refresh(); 
+      } 
+  }
 });
 function foodForMeal(m) { return Object.assign({ id: m.id, name: m.name }, m.n); }
 
@@ -909,9 +981,9 @@ function updatePreview(prefix) {
 }
 function closeSheet() { $('sheet').classList.add('hidden'); sheetCtx = null; }
 
-function confirmAmount() {
+async function confirmAmount() {
   const g = num($('amtInput').value);
-  if (!(g > 0) || g > 5000) { alert('Bitte eine Menge zwischen 1 und 5000 g eingeben.'); return; }
+  if (!(g > 0) || g > 5000) { await showAlert('Bitte eine Menge zwischen 1 und 5000 g eingeben.'); return; }
   const { food, editIndex } = sheetCtx;
   if (editIndex !== null) { todayMeals[editIndex].grams = g; }
   else {
@@ -924,11 +996,11 @@ function confirmAmount() {
   saveMeals(); closeSheet(); refresh();
 }
 
-function copyYesterday() {
+async function copyYesterday() {
   const y = new Date(); y.setDate(y.getDate() - 1);
   const meals = loadMeals(dstr(y));
-  if (!meals.length) { alert('Gestern war nichts eingetragen.'); return; }
-  if (!confirm(`${meals.length} Einträge von gestern übernehmen?`)) return;
+  if (!meals.length) { await showAlert('Gestern war nichts eingetragen.'); return; }
+  if (!await showConfirm(`${meals.length} Einträge von gestern übernehmen?`)) return;
   todayMeals = meals; saveMeals(); refresh();
 }
 
@@ -946,9 +1018,9 @@ function openManual(barcode) {
   $('sheet').classList.remove('hidden');
   $('mName').focus();
 }
-function saveManual() {
+async function saveManual() {
   const name = $('mName').value.trim(), kcal = num($('m_kcal').value), prot = num($('m_prot').value);
-  if (!name || kcal == null || prot == null) { alert('Name, Kalorien und Eiweiß sind Pflicht.'); return; }
+  if (!name || kcal == null || prot == null) { await showAlert('Name, Kalorien und Eiweiß sind Pflicht.'); return; }
   
   const food = { id: manualBarcode || ('custom_' + Date.now()), barcode: manualBarcode, name, kcal, prot };
   food.fat = num($('m_fat').value);
@@ -966,15 +1038,15 @@ function saveManual() {
 
 /* ================= Barcode-Scanner ================= */
 let html5QrCode = null;
-function startScanner() {
-  if (typeof Html5Qrcode === 'undefined') { alert('Scanner konnte nicht geladen werden (offline?). Tipp: Produkt manuell eingeben.'); return; }
+async function startScanner() {
+  if (typeof Html5Qrcode === 'undefined') { await showAlert('Scanner konnte nicht geladen werden (offline?). Tipp: Produkt manuell eingeben.'); return; }
   $('scannerModal').classList.remove('hidden');
   html5QrCode = new Html5Qrcode('reader', { formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E] });
   html5QrCode.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 280, height: 140 } },
     code => { stopScanner().then(() => lookupBarcode(code)); },
     () => {}
-  ).catch(() => {
-    alert('Kamera konnte nicht gestartet werden. Erlaube den Zugriff in den Browser-Einstellungen.');
+  ).catch(async () => {
+    await showAlert('Kamera konnte nicht gestartet werden. Erlaube den Zugriff in den Browser-Einstellungen.');
     $('scannerModal').classList.add('hidden');
   });
 }
@@ -1000,17 +1072,20 @@ async function lookupBarcode(code) {
       const p = data.product, nu = p.nutriments || {};
       let kcal = nu['energy-kcal_100g'];
       if (kcal == null && nu['energy-kj_100g'] != null) kcal = nu['energy-kj_100g'] / 4.184;
-      if (kcal == null) { if (confirm('Produkt gefunden, aber ohne Kalorien-Angabe. Selbst eintragen?')) openManual(code); return; }
+      if (kcal == null) { 
+          if (await showConfirm('Produkt gefunden, aber ohne Kalorien-Angabe.\n\nSelbst eintragen?')) openManual(code); 
+          return; 
+      }
       const food = { id: code, barcode: code, name: p.product_name_de || p.product_name || 'Unbekanntes Produkt',
         kcal, prot: nu.proteins_100g || 0, fat: nu.fat_100g != null ? nu.fat_100g : null, carb: nu.carbohydrates_100g != null ? nu.carbohydrates_100g : null, fib: nu.fiber_100g != null ? nu.fiber_100g : null };
       customFoods = customFoods.filter(f => f.id !== code).concat(food);
       jset('essenlog_custom_foods', customFoods); buildIndex();
       openAmount(food);
-    } else if (confirm('Produkt nicht in Open Food Facts gefunden.\n\nNährwerte selbst eingeben? Sie werden für das nächste Mal gespeichert.')) {
+    } else if (await showConfirm('Produkt nicht in Open Food Facts gefunden.\n\nNährwerte selbst eingeben? Sie werden für das nächste Mal gespeichert.')) {
       openManual(code);
     }
   } catch (err) {
-    if (confirm('Keine Verbindung zu Open Food Facts. Produkt selbst eintragen?')) openManual(code);
+    if (await showConfirm('Keine Verbindung zu Open Food Facts.\n\nProdukt selbst eintragen?')) openManual(code);
   }
 }
 
@@ -1067,17 +1142,17 @@ function exportData() {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `essenlog-backup-${today}.json`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
-function importData(inp) {
+async function importData(inp) {
   const file = inp.files[0]; inp.value = ''; if (!file) return;
   const r = new FileReader();
-  r.onload = () => {
+  r.onload = async () => {
     try {
       const j = JSON.parse(r.result);
       if (j.app !== 'essenlog' || !j.data) throw 0;
-      if (!confirm('Backup einspielen? Vorhandene Daten mit gleichem Datum werden überschrieben.')) return;
+      if (!await showConfirm('Backup einspielen?\n\nVorhandene Daten mit gleichem Datum werden überschrieben.')) return;
       Object.entries(j.data).forEach(([k, v]) => { if (k.startsWith('essenlog_')) localStorage.setItem(k, v); });
       location.reload();
-    } catch (e) { alert('Das ist keine gültige Essenlog-Backup-Datei.'); }
+    } catch (e) { await showAlert('Das ist keine gültige Essenlog-Backup-Datei.'); }
   };
   r.readAsText(file);
 }
