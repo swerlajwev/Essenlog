@@ -10,6 +10,7 @@
             --bg: #f9f9f9;
             --text: #333;
             --border: #ccc;
+            --danger: #ff4d4d;
         }
         body {
             font-family: Arial, sans-serif;
@@ -59,7 +60,7 @@
             font-size: 14px;
             display: none;
         }
-        /* Ergebnis-Liste */
+        /* Ergebnis- und Listen-Karten */
         .result-card {
             background: #fff;
             border: 1px solid var(--border);
@@ -67,6 +68,7 @@
             padding: 15px;
             margin-bottom: 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            position: relative;
         }
         .result-card h3 {
             margin-top: 0;
@@ -74,6 +76,7 @@
             border-bottom: 2px solid var(--primary);
             padding-bottom: 5px;
             font-size: 18px;
+            padding-right: 70px; /* Platz für den Löschen-Button */
         }
         .macros {
             display: flex;
@@ -99,13 +102,26 @@
             border-radius: 3px;
             border: 1px solid #eee;
         }
+        .delete-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 12px;
+        }
         /* Formular */
         form {
             background: #fff;
             padding: 20px;
             border-radius: 5px;
             border: 1px solid var(--border);
-            margin-bottom: 40px;
+            margin-bottom: 20px;
         }
         label {
             display: block;
@@ -154,6 +170,12 @@
         .submit-btn:hover {
             background-color: #8bbd2b;
         }
+        .empty-message {
+            text-align: center;
+            color: #777;
+            font-style: italic;
+            margin-bottom: 30px;
+        }
     </style>
 </head>
 <body>
@@ -176,7 +198,7 @@
     <h2>Eigenes Produkt hinzufügen</h2>
     <form id="productForm">
         <label>Produktname (Pflichtfeld)</label>
-        <input type="text" id="p-name" required placeholder="z.B. Buchweizen (geschält)">
+        <input type="text" id="p-name" required placeholder="z.B. Spar Haferflocken">
 
         <div class="grid-2">
             <div>
@@ -252,6 +274,15 @@
 
         <button type="submit" class="submit-btn">SPEICHERN</button>
     </form>
+
+    <hr style="margin: 40px 0; border: 1px solid var(--border);">
+
+    <!-- ÜBERSICHT DER EIGENEN PRODUKTE -->
+    <h2>Meine hinzugefügten Produkte</h2>
+    <div id="customProductsList">
+        <!-- Hier werden die Produkte per JavaScript eingefügt -->
+    </div>
+
 </div>
 
 <script>
@@ -288,6 +319,9 @@
             console.log("bls.json nicht gefunden, nutze Fallback-Daten.");
             database = [...database, ...customProducts];
         }
+
+        // Liste der eigenen Produkte sofort auf dem Bildschirm anzeigen
+        renderCustomProductsList();
     }
 
     // 2. Text normalisieren (Kleinschreibung, Umlaute, Leerzeichen)
@@ -374,12 +408,12 @@
 
         // Ergebnisse anzeigen (Limit auf 15, damit es nicht zu lang wird)
         results.slice(0, 15).forEach(item => {
-            resultsEl.innerHTML += createResultCard(item);
+            resultsEl.innerHTML += createResultCard(item, false);
         });
     }
 
-    // 5. Ergebnis-Karte bauen
-    function createResultCard(item) {
+    // 5. Ergebnis-Karte bauen (isCustom = true zeigt einen Löschen-Button)
+    function createResultCard(item, isCustom) {
         let microsHtml = '';
         const microKeys = [
             {k: 'vitA', l: 'Vit A'}, {k: 'vitD', l: 'Vit D'}, {k: 'vitE', l: 'Vit E'}, {k: 'vitK', l: 'Vit K'},
@@ -397,8 +431,12 @@
             }
         });
 
+        // Löschen-Button nur anzeigen, wenn es ein eigenes Produkt ist
+        const deleteBtn = isCustom ? `<button class="delete-btn" onclick="deleteCustomProduct('${item.id}')">Löschen</button>` : '';
+
         return `
             <div class="result-card">
+                ${deleteBtn}
                 <h3>${item.name}</h3>
                 <div class="macros">
                     <span>${item.kcal ? item.kcal + ' kcal' : '?'}</span>
@@ -414,6 +452,36 @@
         `;
     }
 
+    // 6. Liste der eigenen Produkte rendern
+    function renderCustomProductsList() {
+        const listEl = document.getElementById('customProductsList');
+        const customProducts = JSON.parse(localStorage.getItem('customProducts')) || [];
+
+        if (customProducts.length === 0) {
+            listEl.innerHTML = '<p class="empty-message">Du hast noch keine eigenen Produkte hinzugefügt.</p>';
+            return;
+        }
+
+        listEl.innerHTML = '';
+        // Neueste Produkte zuerst anzeigen
+        const reversed = [...customProducts].reverse();
+        reversed.forEach(item => {
+            listEl.innerHTML += createResultCard(item, true);
+        });
+    }
+
+    // 7. Produkt löschen
+    function deleteCustomProduct(id) {
+        if (confirm("Möchtest du dieses Produkt wirklich löschen?")) {
+            let customProducts = JSON.parse(localStorage.getItem('customProducts')) || [];
+            customProducts = customProducts.filter(p => p.id !== id);
+            localStorage.setItem('customProducts', JSON.stringify(customProducts));
+            
+            // Datenbank und Ansicht aktualisieren
+            loadData();
+        }
+    }
+
     // Enter-Taste im Suchfeld
     document.getElementById('searchInput').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
@@ -422,7 +490,7 @@
         }
     });
 
-    // 6. Formular absenden
+    // 8. Formular absenden
     document.getElementById('productForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
@@ -457,7 +525,7 @@
         alert("Produkt erfolgreich gespeichert!");
         this.reset();
         
-        // Datenbank neu laden, damit das neue Produkt sofort suchbar ist
+        // Datenbank und Liste neu laden
         loadData();
     });
 
