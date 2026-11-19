@@ -120,12 +120,10 @@
   .dialog-buttons {display:flex; justify-content:flex-end; gap:10px;}
   .dialog-buttons button {height:40px; padding:0 20px; font-size:14px; touch-action:manipulation; cursor:pointer;}
 
-  /* Toast */
   #toast {position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:4px;z-index:300;display:flex;gap:12px;align-items:center;max-width:90vw;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.25);}
   #toast button{background:none;border:1px solid #fff;color:#fff;padding:4px 10px;cursor:pointer;font-family:var(--font-m);font-size:11px;letter-spacing:.1em;}
   #toast button:active{background:#fff;color:var(--ink);}
 
-  /* Ziele */
   .goal-item{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:6px;}
   .goal-item > span{width:130px;flex:none;}
   .goal-item .bar{flex:1;height:6px;}
@@ -136,14 +134,12 @@
 
   #blsWarn{background:var(--pink);color:#fff;padding:10px 14px;font-family:var(--font-m);font-size:11px;text-align:center;letter-spacing:.05em;}
 
-  /* Rezepte */
   .recipe-card { border:1px solid var(--line); padding:12px; margin-bottom:10px; background:#fff; }
   .recipe-card .title { font-family:var(--font-d); font-size:16px; font-weight:600; margin-bottom:4px; }
   .recipe-card .meta { font-family:var(--font-m); font-size:11px; color:var(--muted); margin-bottom:8px; }
   .recipe-card .actions { display:flex; gap:6px; margin-top:8px; }
   .recipe-card .actions button { flex:1; height:32px; font-size:11px; padding:0 6px; }
 
-  /* Dark Mode */
   [data-theme="dark"] { --bg:#0a0a0a; --ink:#fafafa; --muted:#a1a1aa; --line:#3f3f46; --track:#27272a; --lime-tint:#1a2e05; }
   [data-theme="dark"] body { background:var(--bg); color:var(--ink); }
   [data-theme="dark"] .frame,
@@ -374,8 +370,7 @@
       <input type="file" id="importFile" accept="application/json,.json" class="hidden" onchange="importData(this)">
     </div>
     <div class="note" style="padding-bottom:12px;">
-      Datenquelle: Max Rubner-Institut (2025): Bundeslebensmittelschlüssel (BLS), Version 4.0 – Deutsche Nährstoffdatenbank. Karlsruhe. DOI 10.25826/Data20251217-134202-0 (CC BY 4.0). Barcode-Produkte: Open Food Facts. Referenzwerte nach D-A-CH, vereinfacht (Altersgruppen 15–18, 19–24, 25–50, 51+). Richtwerte, keine medizinische Beratung.
-      Erweiterte Werte (Cholesterin, Fettsäuren-Details, Zucker-Arten, Ballaststoff-Fraktionen, Retinol/β-Carotin, Niacin-Äquivalent, Koffein/Alkohol, Aminosäuren) werden in der Übersicht unter „WEITERE WERTE" angezeigt. UL = tolerierbare Höchstmenge. ω3:ω6-Zielverhältnis 1:2 bis 1:5 (D-A-CH).
+      Datenquelle: Max Rubner-Institut (2025): Bundeslebensmittelschlüssel (BLS), Version 4.0. Barcode-Produkte: Open Food Facts. Referenzwerte nach D-A-CH.
     </div>
   </div>
 </div>
@@ -756,6 +751,7 @@ let recipeDraft = null;
 let sheetCtx = null, chipN = 0, chipLast = null;
 let manualBarcode = null;
 let html5QrCode = null;
+let lastResults = [];
 
 let FALLBACK_DATA = [
   {"id":"C133000","name":"Hafer Flocken","kcal":347.9,"prot":13.22,"fat":6.65,"carb":53.3,"fib":10.98},
@@ -794,169 +790,38 @@ function buildIndex() {
   const base = blsData.concat(extraFoods);
   foodMap = new Map(); extraByCode = new Map();
   base.forEach(f => foodMap.set(f.id, f));
-  extraFoods.forEach(f => { if (f.barcode) extraByCode.set(String(f.barcode), f); });
+  extraFoods.forEach(f => { if (f.barcode) extraByCode.set(String(f.barcode).trim(), f); });
   customFoods.forEach(f => foodMap.set(f.id, f));
 }
 
-/* ================= CSV ================= */
-function parseCSV(text) {
-  const result = [];
-  let row = [], current = '', inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (char === '"') { inQuotes = !inQuotes; }
-    else if (char === ',' && !inQuotes) { row.push(current); current = ''; }
-    else if ((char === '\n' || char === '\r') && !inQuotes) {
-      if (current !== '' || row.length > 0) { row.push(current); result.push(row); row = []; current = ''; }
-    } else { current += char; }
-  }
-  if (current) { row.push(current); result.push(row); }
-  return result;
-}
-
-function processCSVData(rows) {
-  if (rows.length < 2) return [];
-  const headers = rows[0];
-  const getIdx = (str) => headers.findIndex(h => h && h.includes(str));
-  const idxId = getIdx('BLS Code');
-  const idxName = getIdx('Lebensmittelbezeichnung');
-  const idxKcal = getIdx('ENERCC');
-  const idxProt = getIdx('PROT625');
-  const idxFat = getIdx('FAT Fett');
-  const idxCarb = getIdx('CHO Kohlenhydrate');
-  const idxFib = getIdx('FIBT');
-  const idxSugar = getIdx('SUGAR');
-  const idxSat = getIdx('FASAT');
-  const idxSalt = getIdx('NACL');
-  const idxVitA = getIdx('VITA');
-  const idxVitD = getIdx('VITD');
-  const idxVitE = getIdx('VITE');
-  const idxVitK = getIdx('VITK');
-  const idxVitB1 = getIdx('THIA');
-  const idxVitB2 = getIdx('RIBF');
-  const idxVitB3 = getIdx('NIA Niacin');
-  const idxVitB5 = getIdx('PANTAC');
-  const idxVitB6 = getIdx('VITB6');
-  const idxVitB7 = getIdx('BIOT');
-  const idxFolat = getIdx('FOL Folat');
-  const idxVitB12 = getIdx('VITB12');
-  const idxVitC = getIdx('VITC');
-  const idxNatrium = getIdx('NA Natrium');
-  const idxChlorid = getIdx('CLD');
-  const idxKalium = getIdx('K Kalium');
-  const idxCalcium = getIdx('CA Calcium');
-  const idxMagnesium = getIdx('MG Magnesium');
-  const idxPhosphor = getIdx('P Phosphor');
-  const idxEisen = getIdx('FE Eisen');
-  const idxZink = getIdx('ZN Zink');
-  const idxJod = getIdx('ID Iodid');
-  const idxKupfer = getIdx('CU Kupfer');
-  const idxMangan = getIdx('MN Mangan');
-  const idxFluorid = getIdx('FD Fluorid');
-  const idxChrom = getIdx('CR Chrom');
-  const idxMolybdän = getIdx('MO Molybdän');
-  const idxOmega3 = getIdx('FAPUN3');
-  const idxEpa = getIdx('F20:5CN3');
-  const idxDha = getIdx('F22:6CN3');
-  const idxChol = getIdx('CHOL');
-  const idxMonofat = getIdx('FAMS');
-  const idxPolyfat = getIdx('FAPU');
-  const idxTransfat = getIdx('FATRS');
-  const idxOmega6 = getIdx('FAPUN6');
-  const idxStarch = getIdx('STARCH') !== -1 ? getIdx('STARCH') : getIdx('STAR');
-  const idxGlucose = getIdx('GLUC');
-  const idxFructose = getIdx('FRUC');
-  const idxLactose = getIdx('LACT');
-  const idxSucrose = getIdx('SUCR');
-  const idxFiberSol = getIdx('FIBSOL');
-  const idxFiberInsol = getIdx('FIBINS');
-  const idxCaffeine = getIdx('COFF');
-  const idxAlcohol = getIdx('ALCO');
-  const idxRetinol = getIdx('RETI');
-  const idxBetacarotin = getIdx('CART') !== -1 ? getIdx('CART') : getIdx('BCAR');
-  const idxNiacinNE = getIdx('NIAEQ') !== -1 ? getIdx('NIAEQ') : getIdx('NIAEQU');
-  const idxHis = getIdx('AAHIS') !== -1 ? getIdx('AAHIS') : getIdx('HIS');
-  const idxIle = getIdx('AAILE') !== -1 ? getIdx('AAILE') : getIdx('ILE');
-  const idxLeu = getIdx('AALEU') !== -1 ? getIdx('AALEU') : getIdx('LEU');
-  const idxLys = getIdx('AALYS') !== -1 ? getIdx('AALYS') : getIdx('LYS');
-  const idxMet = getIdx('AAMET') !== -1 ? getIdx('AAMET') : getIdx('MET');
-  const idxPhe = getIdx('AAPHE') !== -1 ? getIdx('AAPHE') : getIdx('PHE');
-  const idxThr = getIdx('AATHR') !== -1 ? getIdx('AATHR') : getIdx('THR');
-  const idxTrp = getIdx('AATRP') !== -1 ? getIdx('AATRP') : getIdx('TRP');
-  const idxVal = getIdx('AAVAL') !== -1 ? getIdx('AAVAL') : getIdx('VAL');
-  const idxGln = getIdx('AAGLN') !== -1 ? getIdx('AAGLN') : getIdx('GLN');
-
-  console.log('[BLS] Erkannte Spalten:', { idxChol, idxMonofat, idxOmega6, idxCaffeine, idxHis, idxLeu, idxNiacinNE });
-
-  const parsed = [];
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row[idxName]) continue;
-    const getVal = (idx) => {
-      if (idx === -1 || !row[idx]) return null;
-      let v = row[idx].trim();
-      if (v === '-' || v.includes('<') || v === '') return null;
-      v = v.replace(',', '.');
-      const n = parseFloat(v);
-      return isNaN(n) ? null : n;
-    };
-    const naVal = getVal(idxNatrium);
-    const saltVal = getVal(idxSalt) != null ? getVal(idxSalt) : (naVal != null ? naVal * 2.54 / 1000 : null);
-    const retiVal = getVal(idxRetinol), cartVal = getVal(idxBetacarotin);
-    const vitAFinal = (idxRetinol !== -1 && idxBetacarotin !== -1)
-      ? ((retiVal != null || cartVal != null) ? (retiVal || 0) + (cartVal || 0) / 12 : null)
-      : getVal(idxVitA);
-
-    parsed.push({
-      id: row[idxId] || "custom_" + i,
-      name: row[idxName],
-      kcal: getVal(idxKcal), prot: getVal(idxProt), fat: getVal(idxFat), carb: getVal(idxCarb),
-      fib: getVal(idxFib), sugar: getVal(idxSugar), satfat: getVal(idxSat), salt: saltVal,
-      vitA: vitAFinal, vitD: getVal(idxVitD), vitE: getVal(idxVitE), vitK: getVal(idxVitK),
-      vitB1: getVal(idxVitB1), vitB2: getVal(idxVitB2), vitB3: getVal(idxVitB3), vitB5: getVal(idxVitB5),
-      vitB6: getVal(idxVitB6), vitB7: getVal(idxVitB7), folat: getVal(idxFolat), vitB12: getVal(idxVitB12),
-      vitC: getVal(idxVitC), natrium: naVal, chlorid: getVal(idxChlorid), kalium: getVal(idxKalium),
-      calcium: getVal(idxCalcium), magnesium: getVal(idxMagnesium), phosphor: getVal(idxPhosphor), eisen: getVal(idxEisen),
-      zink: getVal(idxZink), jod: getVal(idxJod), kupfer: getVal(idxKupfer), mangan: getVal(idxMangan),
-      fluorid: getVal(idxFluorid), chrom: getVal(idxChrom), molybdän: getVal(idxMolybdän),
-      omega3: getVal(idxOmega3), epa: getVal(idxEpa), dha: getVal(idxDha),
-      cholesterol: getVal(idxChol), monofat: getVal(idxMonofat), polyfat: getVal(idxPolyfat),
-      transfat: getVal(idxTransfat), omega6: getVal(idxOmega6),
-      starch: getVal(idxStarch), glucose: getVal(idxGlucose), fructose: getVal(idxFructose),
-      lactose: getVal(idxLactose), sucrose: getVal(idxSucrose),
-      fiberSol: getVal(idxFiberSol), fiberInsol: getVal(idxFiberInsol),
-      caffeine: getVal(idxCaffeine), alcohol: getVal(idxAlcohol),
-      retinol: retiVal, betacarotin: cartVal, niacinNE: getVal(idxNiacinNE),
-      his: getVal(idxHis), ile: getVal(idxIle), leu: getVal(idxLeu), lys: getVal(idxLys),
-      met: getVal(idxMet), phe: getVal(idxPhe), thr: getVal(idxThr), trp: getVal(idxTrp),
-      val: getVal(idxVal), gln: getVal(idxGln)
-    });
-  }
-  return parsed;
-}
-
-fetch('./BLS_4_0_Daten_2025_DE.csv')
-  .then(r => { if (!r.ok) throw new Error('CSV nicht gefunden'); return r.text(); })
-  .then(text => {
-    const parsedData = processCSVData(parseCSV(text));
-    if (parsedData.length > 0) {
-      blsData = parsedData;
-      console.log('[BLS] CSV geladen: ' + parsedData.length + ' Einträge.');
-    } else {
-      blsData = FALLBACK_DATA;
-      $('app').insertAdjacentHTML('afterbegin', '<div id="blsWarn">BLS-CSV lieferte 0 Einträge – nur 3 Testdaten aktiv.</div>');
-    }
+/* ================= Laden der JSON-Daten ================= */
+fetch('./bls.json')
+  .then(r => { if (!r.ok) throw new Error('JSON nicht gefunden'); return r.json(); })
+  .then(data => {
+    blsData = data;
+    console.log('[BLS] JSON geladen: ' + blsData.length + ' Einträge.');
     buildIndex();
     if (!$('modal').classList.contains('hidden') && !$('foodSearch').value) searchFood('');
   })
   .catch(err => {
-    console.warn('[BLS] CSV nicht geladen:', err);
+    console.warn('[BLS] JSON nicht geladen:', err);
     blsData = FALLBACK_DATA;
     buildIndex();
-    $('app').insertAdjacentHTML('afterbegin', '<div id="blsWarn">BLS-CSV nicht geladen (Datei fehlt?) – nur 3 Testdaten aktiv.</div>');
+    $('app').insertAdjacentHTML('afterbegin', '<div id="blsWarn">BLS-JSON nicht geladen (Datei fehlt?) – nur 3 Testdaten aktiv.</div>');
   });
 
-['supermarkt.json'].forEach(fn => fetch('./' + fn).then(r => r.ok ? r.json() : []).then(d => { if (Array.isArray(d) && d.length) { extraFoods = extraFoods.concat(d); buildIndex(); } }).catch(() => {}));
+fetch('./supermarkt.json')
+  .then(r => r.ok ? r.json() : [])
+  .then(d => {
+    if (Array.isArray(d) && d.length) {
+      // 1. Gurkerl rausfiltern
+      const filtered = d.filter(f => !f.name.includes('Gurkerl') && !f.id.includes('gurkerl_'));
+      // 2. Salz aus Natrium berechnen, falls Salz fehlt
+      filtered.forEach(f => { if (f.salt == null && f.natrium != null) f.salt = f.natrium * 2.54 / 1000; });
+      extraFoods = filtered;
+      buildIndex();
+    }
+  }).catch(() => {});
 
 /* ================= Berechnungen ================= */
 function getTargets(stepCount) {
@@ -1587,9 +1452,7 @@ function stopScanner() {
 }
 function closeScanner() { stopScanner(); }
 
-/* Open Food Facts -> App-Felder (OFF liefert *_100g in Gramm, die App nutzt g/mg/µg) */
 const OFF_MAP = [
-  // [App-Key, OFF-Key(s), Faktor auf App-Einheit]
   ['fat','fat',1],['carb','carbohydrates',1],['fib','fiber',1],['sugar','sugars',1],['satfat','saturated-fat',1],
   ['monofat','monounsaturated-fat',1],['polyfat','polyunsaturated-fat',1],['transfat','trans-fat',1],
   ['omega3','omega-3-fat',1],['omega6','omega-6-fat',1],['epa','epa',1],['dha','dha',1],
@@ -1945,7 +1808,7 @@ function importData(inp) {
       const j = JSON.parse(r.result);
       if (!j || j.app !== 'essenlog') throw new Error('Ungültige Datei');
       const set = {}; const meals = {};
-      if (j.data && typeof j.data === 'object') {            /* altes Format */
+      if (j.data && typeof j.data === 'object') {
         Object.entries(j.data).forEach(([k, v]) => {
           if (!k.startsWith('essenlog_')) return;
           let val; try { val = JSON.parse(v); } catch (x) { return; }
