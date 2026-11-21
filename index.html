@@ -90,17 +90,17 @@
   .macro-cell b{display:block;font-family:var(--font-d);font-size:20px;font-weight:600;}
 
   .micro-group{display:flex;flex-direction:column;gap:6px;margin-top:10px;border-top:1px solid var(--track);padding-top:10px;}
-  .micro-header{display:flex;justify-content:space-between;cursor:pointer;font-family:var(--font-m);font-size:11px;letter-spacing:.1em;}
+  .micro-header{display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-family:var(--font-m);font-size:13px;font-weight:600;letter-spacing:.08em;padding:4px 0;}
   .micro-header em{font-style:normal;color:var(--pink);margin-right:6px;}
-  .micro-list{display:none;flex-direction:column;gap:8px;margin-top:8px;}
+  .micro-list{display:none;flex-direction:column;gap:12px;margin-top:10px;}
   .micro-list.open{display:flex;}
-  .micro-item{display:flex;align-items:center;gap:8px;font-size:12px;}
-  .micro-item span{width:130px;flex:none;}
-  .micro-item .bar{flex:1;height:6px;}
-  .micro-item .bar i{height:6px;}
-  .micro-item b{width:58px;text-align:right;font-size:11px;font-family:var(--font-m);flex:none;}
+  .micro-item{display:flex;align-items:center;gap:10px;font-size:14px;}
+  .micro-item span{width:150px;flex:none;}
+  .micro-item .bar{flex:1;height:9px;}
+  .micro-item .bar i{height:9px;}
+  .micro-item b{width:66px;text-align:right;font-size:12px;font-family:var(--font-m);flex:none;}
   .micro-item b.nodata{color:var(--muted);font-weight:400;font-size:10px;}
-  .micro-sub{font-size:10px;font-family:var(--font-m);color:var(--muted);padding-left:138px;margin-top:-4px;}
+  .micro-sub{font-size:11px;font-family:var(--font-m);color:var(--muted);padding-left:160px;margin-top:0;}
 
   .hist-row{display:flex;flex-direction:column;gap:4px;padding:8px 0;border-bottom:1px solid var(--track);cursor:pointer;}
   .hist-row:last-child{border-bottom:0;}
@@ -116,8 +116,8 @@
   #scannerModal{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:200;display:flex;flex-direction:column;}
   #reader {width:100%; flex:1;}
 
-  #dialogOverlay, #emailOverlay {position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:99999; display:flex; align-items:center; justify-content:center; padding:20px; touch-action:none;}
-  #dialogBox, #emailBox {background:#fff; border-radius:12px; padding:20px; max-width:340px; width:100%; box-shadow:0 10px 25px rgba(0,0,0,0.3);}
+  #dialogOverlay, #emailOverlay, #stepsOverlay {position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:99999; display:flex; align-items:center; justify-content:center; padding:20px; touch-action:none;}
+  #dialogBox, #emailBox, #stepsBox {background:#fff; border-radius:12px; padding:20px; max-width:340px; width:100%; box-shadow:0 10px 25px rgba(0,0,0,0.3);}
   #dialogTitle {margin:0 0 10px 0; font-family:var(--font-d); font-size:22px; color:var(--ink);}
   #dialogMessage {margin:0 0 20px 0; font-size:15px; line-height:1.5; color:var(--ink); white-space:pre-wrap;}
   .dialog-buttons {display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px;}
@@ -168,11 +168,11 @@
 
   /* ===== Übersicht: Eiweiß-Kreis + Einzelbalken ===== */
   .ringcard{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;}
-  .ring.big{width:200px;height:200px;}
-  .ring.big svg{width:200px;height:200px;}
-  #protRing{transition:stroke-dasharray .4s ease;}
+  .ring.big{width:160px;height:160px;}
+  .ring.big svg{width:160px;height:160px;}
+  #calRing{transition:stroke-dasharray .4s ease;}
   .ring.big .rc{gap:2px;}
-  .ring.big .big-num{font-family:var(--font-d);font-size:52px;font-weight:600;line-height:1;}
+  .ring.big .big-num{font-family:var(--font-d);font-size:38px;font-weight:600;line-height:1;}
   .vrow{display:flex;flex-direction:column;gap:5px;}
   .vrow .vh{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;font-weight:500;}
   .vrow .vh b{font-family:var(--font-m);font-size:12px;font-weight:600;white-space:nowrap;}
@@ -231,6 +231,7 @@
   [data-theme="dark"] .btn-outline,
   [data-theme="dark"] .btn-grey,
   [data-theme="dark"] #dialogBox,
+  [data-theme="dark"] #stepsBox,
   [data-theme="dark"] .food-item,
   [data-theme="dark"] .meal-item,
   [data-theme="dark"] input,
@@ -253,26 +254,27 @@
 
 <div id="app">
   <div id="tab-home">
-    <div class="row topbar" style="align-items:flex-end;">
+    <div class="row topbar" style="align-items:flex-end;flex-wrap:wrap;gap:8px;">
       <div><div class="eyebrow" id="todayDate">HEUTE</div><h1 class="display">ÜBERSICHT</h1></div>
-      <div class="btn-group">
+      <div class="btn-group" style="width:100%;">
+        <button class="btn btn-outline" id="stepBtn" style="padding:0 10px;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="openSteps()" aria-label="Schritte eintragen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg><span id="stepBtnTxt" class="mono" style="font-size:11px;"></span></button>
         <button class="btn btn-outline" style="padding: 0 12px; display: flex; align-items: center; justify-content: center;" onclick="startScanner()" aria-label="Barcode scannen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg></button>
-        <button class="btn" onclick="openModal()">+ HINZUFÜGEN</button>
+        <button class="btn" style="flex:1;padding:0 12px;" onclick="openModal()">+ HINZUFÜGEN</button>
       </div>
     </div>
 
-    <div class="frame ringcard">
+    <div class="ringcard">
       <div class="ring big">
-        <svg width="200" height="200" viewBox="0 0 200 200"><circle cx="100" cy="100" r="84" fill="none" style="stroke:var(--track);" stroke-width="16"/><circle id="protRing" cx="100" cy="100" r="84" fill="none" style="stroke:var(--green);" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 527.79"/></svg>
-        <div class="rc"><span class="eyebrow">EIWEISS</span><div class="big-num" id="protCurrent">0</div><div class="mono" style="font-size:12px;color:var(--muted);" id="protTarget">von 0 g</div></div>
+        <svg width="160" height="160" viewBox="0 0 160 160"><circle cx="80" cy="80" r="68" fill="none" style="stroke:var(--track);" stroke-width="20"/><circle id="calRing" cx="80" cy="80" r="68" fill="none" style="stroke:var(--ink);" stroke-width="20" stroke-linecap="round" stroke-dasharray="0 427.26"/></svg>
+        <div class="rc"><span class="eyebrow">KALORIEN</span><div class="big-num" id="calCurrent">0</div><div class="mono" style="font-size:11px;color:var(--muted);" id="calTarget">von 0 kcal</div></div>
       </div>
-      <div class="mono" style="font-size:12px;color:var(--muted);" id="protRemaining">0 g offen</div>
+      <div class="mono" style="font-size:12px;color:var(--muted);" id="calRemaining">0 kcal offen</div>
     </div>
 
     <div class="frame col">
       <span class="eyebrow">TAGESWERTE</span>
       <div class="vlist">
-      <div class="vrow"><div class="vh"><span>Kalorien</span><b id="v-kcal">0 / 0</b></div><div class="bar"><i id="b-kcal" style="background:var(--ink);"></i></div></div>
+      <div class="vrow"><div class="vh"><span>Eiweiß</span><b id="v-prot">0 / 0</b></div><div class="bar"><i id="b-prot" style="background:var(--green);"></i></div></div>
       <div class="vrow"><div class="vh"><span>Fett</span><b id="v-fat">0 / 0</b></div><div class="bar"><i id="b-fat" style="background:var(--amber);"></i></div></div>
       <div class="vrow"><div class="vh"><span>Kohlenhydrate</span><b id="v-carb">0 / 0</b></div><div class="bar"><i id="b-carb" style="background:var(--sky);"></i></div></div>
       <div class="vrow"><div class="vh"><span>Ballaststoffe</span><b id="v-fib">0 / 0</b></div><div class="bar"><i id="b-fib" style="background:var(--green);"></i></div></div>
@@ -290,48 +292,15 @@
     </div>
 
     <div class="frame col">
-      <div class="row"><span class="eyebrow">SCHRITTE HEUTE</span><span class="mono" style="font-size:11px;color:var(--muted);" id="stepFactor"></span></div>
-      <input type="number" inputmode="numeric" id="stepInput" placeholder="z.B. 8500" style="padding:8px;border:1px solid var(--line);font-family:var(--font-m);font-size:16px;border-radius:0;" onchange="saveSteps(this.value)">
-      <div class="note">Mehr Bewegung heißt mehr Kalorienverbrauch: Dein Kalorienziel steigt mit deinen Schritten. Ohne Eingabe rechnet die App mit einem durchschnittlichen Tag. Die Schritte siehst du pro Tag im Verlauf.</div>
-    </div>
-
-    <div class="frame col">
       <span class="eyebrow">PROGNOSE</span>
       <div class="note" id="prognosis">Zielgewicht im Profil eintragen für eine Prognose.</div>
     </div>
 
     <div class="frame col">
-      <span class="eyebrow">MIKRONÄHRSTOFFE</span>
+      <span class="eyebrow">MIKRONÄHRSTOFFE &amp; WEITERE WERTE</span>
       <div id="gapSummary" class="note"></div>
-      <div class="micro-group">
-        <div class="micro-header" onclick="this.nextElementSibling.classList.toggle('open')">
-          <span>VITAMINE</span><span><em id="gap-vit"></em>▼</span>
-        </div>
-        <div class="micro-list" id="micro-vitamins"></div>
-      </div>
-      <div class="micro-group">
-        <div class="micro-header" onclick="this.nextElementSibling.classList.toggle('open')">
-          <span>MINERALSTOFFE</span><span><em id="gap-min"></em>▼</span>
-        </div>
-        <div class="micro-list" id="micro-minerals"></div>
-      </div>
-      <div class="micro-group">
-        <div class="micro-header" onclick="this.nextElementSibling.classList.toggle('open')">
-          <span>OMEGA-3</span><span><em id="gap-oth"></em>▼</span>
-        </div>
-        <div class="micro-list" id="micro-other"></div>
-      </div>
-      <div class="note">100 % = D-A-CH-Referenzwert für dein Alter/Geschlecht. Unter 50 % = Lücke (pink), rot = über der Obergrenze. „keine Daten“ heißt: bei diesen Lebensmitteln ist der Wert nicht erfasst, das ist keine Lücke. * = bei manchen Einträgen fehlt der Wert.</div>
-    </div>
-
-    <div class="frame col">
-      <div class="micro-group" style="border-top:0;padding-top:0;margin-top:0;">
-        <div class="micro-header" onclick="this.nextElementSibling.classList.toggle('open')">
-          <span>WEITERE WERTE</span><span>▼</span>
-        </div>
-        <div class="micro-list open" id="extendedValues"></div>
-      </div>
-      <div class="note">Cholesterin, Fettsäuren-Details, Zucker-Arten, Ballaststoff-Fraktionen, Vitamin-A-Formen, Niacin-Äquivalent, Koffein/Alkohol und Aminosäuren. „–" = in keinem erfassten Lebensmittel enthalten.</div>
+      <div id="microGroups"></div>
+      <div class="note">100 % = D-A-CH-Referenzwert für dein Alter/Geschlecht. Unter 50 % = Lücke (pink), rot = über der Obergrenze. „keine Daten“ heißt: bei diesen Lebensmitteln ist der Wert nicht erfasst, das ist keine Lücke. * = bei manchen Einträgen fehlt der Wert. Gruppen mit Werten sind oben und offen, leere zugeklappt (antippen zum Öffnen).</div>
     </div>
   </div>
 
@@ -343,6 +312,10 @@
     </div>
     <div class="frame col">
       <span class="eyebrow">ALLE TAGE</span>
+      <div class="row" style="gap:8px;">
+        <input type="date" id="histAddDate" style="flex:1;min-width:0;padding:8px;border:1px solid var(--line);border-radius:0;font-family:var(--font-m);font-size:14px;background:var(--card);color:var(--ink);">
+        <button class="btn btn-outline btn-sm" onclick="addToDate()">+ EINTRAG FÜR TAG</button>
+      </div>
       <div id="histRows"></div>
       <div class="note">Tippe auf einen Tag, um Einträge zu bearbeiten. Das Tagesziel richtet sich nach deinem Profil und den Schritten des Tages.</div>
     </div>
@@ -703,6 +676,15 @@
       <button type="button" class="btn btn-grey" id="authRegister">Registrieren</button>
       <button type="button" class="btn" id="authLogin">Einloggen</button>
     </div>
+  </div>
+</div>
+
+<div id="stepsOverlay" class="hidden">
+  <div id="stepsBox">
+    <h3 id="stepsTitle" style="margin:0 0 10px 0;font-family:var(--font-d);font-size:22px;">Schritte heute</h3>
+    <input type="number" inputmode="numeric" id="stepsInput" placeholder="z.B. 8500" style="width:100%;padding:10px;border:1px solid var(--line);font-size:16px;border-radius:0;background:var(--card);color:var(--ink);margin-bottom:10px;">
+    <div class="note" id="stepsNote" style="margin-bottom:16px;"></div>
+    <div class="dialog-buttons"><button type="button" class="btn btn-grey" onclick="closeSteps()">ABBRECHEN</button><button type="button" class="btn" onclick="submitSteps()">SPEICHERN</button></div>
   </div>
 </div>
 
@@ -1127,6 +1109,7 @@ const MACRO_KEYS = ['kcal','prot','fat','carb','fib','sugar','satfat','salt',
 
 const ALLK = MACRO_KEYS.concat(NUT.map(n => n.k));
 
+const unitOf = name => DRINK_KEYWORDS.test(name || '') ? 'ml' : 'g';
 function ageGroup(age) { return age < 19 ? 0 : age < 25 ? 1 : age < 51 ? 2 : 3; }
 function refValue(x) {
   const src = x.all !== undefined ? x.all : (profile.gender === 'w' ? x.w : x.m);
@@ -1276,20 +1259,23 @@ function setVal(key, cur, tgt, unit, over) {
 
 function calcAll() {
   const sc = todaySteps(), T = getTargets(sc);
-  $('stepFactor').textContent = sc ? `Faktor ${T.factor.toFixed(2)}` : 'Faktor 1.55 (Standard)';
+  updateStepBtn();
   $('calcBmr').textContent = Math.round(T.bmr) + ' kcal';
   $('calcTdee').textContent = T.tdee + ' kcal';
   $('calcTargetCal').textContent = T.cal + ' kcal';
   $('calcTargetProt').textContent = T.prot + ' g';
 
   const t = dayTotals(todayMeals);
-  const ringPct = T.prot > 0 ? Math.min(100, t.prot / T.prot * 100) : 0;
-  $('protCurrent').textContent = Math.round(t.prot);
-  $('protTarget').textContent = `von ${T.prot} g`;
-  $('protRemaining').textContent = t.prot >= T.prot ? 'Ziel erreicht ✓' : `${Math.round(T.prot - t.prot)} g offen`;
-  $('protRing').setAttribute('stroke-dasharray', `${(ringPct * 527.79 / 100).toFixed(1)} 527.79`);
+  const calOver = t.kcal - T.cal;
+  const calPct = T.cal > 0 ? Math.min(100, t.kcal / T.cal * 100) : 0;
+  $('calCurrent').textContent = Math.round(t.kcal);
+  $('calTarget').textContent = `von ${T.cal} kcal`;
+  $('calRemaining').textContent = calOver > 0 ? `${Math.round(calOver)} kcal drüber` : `${Math.round(T.cal - t.kcal)} kcal offen`;
+  $('calRemaining').style.color = calOver > T.cal * 0.05 ? 'var(--red)' : 'var(--muted)';
+  $('calRing').setAttribute('stroke-dasharray', `${(calPct * 427.26 / 100).toFixed(1)} 427.26`);
+  $('calRing').style.stroke = calOver > T.cal * 0.05 ? 'var(--red)' : 'var(--ink)';
 
-  setVal('kcal', t.kcal, T.cal, 'kcal', t.kcal > T.cal * 1.05);
+  setVal('prot', t.prot, T.prot, 'g', false);
   setVal('fat', t.fat, T.fatT, 'g', t.fat > T.fatT * 1.15);
   setVal('carb', t.carb, T.carbT, 'g', t.carb > T.carbT * 1.15);
   setVal('fib', t.fib, T.fiber, 'g', false);
@@ -1338,7 +1324,7 @@ function renderMeals() {
       html += `<div class="meal-item">
         <div class="txt" data-edit="${i}">
           <div class="name">${esc(m.name)}</div>
-          <div class="macros">${fmt(m.grams)} g${portionTxt} · ${Math.round((m.n.kcal || 0) * f)} kcal · ${((m.n.prot || 0) * f).toFixed(1)} g P${time ? ' · ' + time : ''}</div>
+          <div class="macros">${fmt(m.grams)} ${unitOf(m.name)}${portionTxt} · ${Math.round((m.n.kcal || 0) * f)} kcal · ${((m.n.prot || 0) * f).toFixed(1)} g P${time ? ' · ' + time : ''}</div>
         </div>
         <button data-del="${i}" aria-label="Eintrag löschen">&times;</button>
       </div>`;
@@ -1353,12 +1339,18 @@ $('mealList').addEventListener('click', e => {
   if (ed) { const i = +ed.dataset.edit; openAmount(foodForMeal(todayMeals[i]), i); }
   else if (del) {
     const i = +del.dataset.del;
-    const removed = todayMeals.splice(i, 1)[0];
-    saveMeals(); refresh();
-    showToast(`„${removed.name}" gelöscht`, () => {
-      todayMeals.splice(i, 0, removed);
-      saveMeals(); refresh();
-    });
+    const target = todayMeals[i]; if (!target) return;
+    showDialog('Löschen', `„${target.name}“ wirklich löschen?`, [
+      { text: 'Abbrechen' },
+      { text: 'Löschen', primary: true, action: () => {
+        const removed = todayMeals.splice(i, 1)[0];
+        saveMeals(); refresh();
+        showToast(`„${removed.name}“ gelöscht`, () => {
+          todayMeals.splice(i, 0, removed);
+          saveMeals(); refresh();
+        });
+      } }
+    ]);
   }
 });
 function foodForMeal(m) { return Object.assign({ id: m.id, name: m.name }, m.n); }
@@ -1372,32 +1364,47 @@ function microState(totals) {
   });
 }
 
+const microParts = {}, microManual = {};
 function renderMicros() {
   const st = microState(dayTotals(todayMeals));
-  const html = { vit: '', min: '', oth: '' }, gaps = { vit: 0, min: 0, oth: 0 };
+  const html = { vit: '', min: '', oth: '' }, nod = { vit: '', min: '', oth: '' }, gaps = { vit: 0, min: 0, oth: 0 }, has = { vit: 0, min: 0, oth: 0 };
   st.forEach(r => {
     const x = r.x;
     if (r.nodata) {
-      html[x.grp] += `<div><div class="micro-item"><span>${x.label}</span><div class="bar"></div><b class="nodata">keine Daten</b></div></div>`;
+      nod[x.grp] += `<div><div class="micro-item"><span>${x.label}</span><div class="bar"></div><b class="nodata">keine Daten</b></div></div>`;
       return;
     }
+    has[x.grp]++;
     if (r.gap && todayMeals.length) gaps[x.grp]++;
     const color = r.over ? 'var(--red)' : r.gap ? 'var(--pink)' : 'var(--sky)';
     const star = r.s.missing ? ' *' : '';
     html[x.grp] += `<div><div class="micro-item"><span>${x.label}</span><div class="bar"><i style="width:${Math.min(100, r.pct * 100)}%;background:${color};"></i></div><b style="color:${r.over ? 'var(--red)' : 'inherit'}">${Math.round(r.pct * 100)}%${star}</b></div>
       <div class="micro-sub">${fmt(r.s.sum)} / ${fmt(r.ref)} ${x.unit}${r.over ? ' · ÜBER OBERGRENZE (' + x.ul + ')' : ''}</div></div>`;
   });
-  $('micro-vitamins').innerHTML = html.vit;
-  $('micro-minerals').innerHTML = html.min;
-  $('micro-other').innerHTML = html.oth;
-  ['vit', 'min', 'oth'].forEach(g => $('gap-' + g).textContent = gaps[g] ? gaps[g] + ' LÜCKEN' : '');
+  const titles = { vit: 'VITAMINE', min: 'MINERALSTOFFE', oth: 'OMEGA-3' };
+  ['vit', 'min', 'oth'].forEach(g => { microParts[g] = { title: titles[g], html: html[g] + nod[g], has: has[g], gaps: gaps[g] }; });
   const worst = st.filter(r => !r.nodata && r.gap).sort((a, b) => a.pct - b.pct).slice(0, 5);
   const over = st.filter(r => r.over);
   let txt = '';
   if (todayMeals.length && worst.length) txt += `<b>Größte Lücken:</b> ${worst.map(r => `${r.x.label} ${Math.round(r.pct * 100)}%`).join(', ')}. `;
   if (over.length) txt += `<b style="color:var(--red)">Über Obergrenze:</b> ${over.map(r => r.x.label).join(', ')}.`;
   $('gapSummary').innerHTML = txt;
+  layoutMicro();
 }
+function layoutMicro() {
+  const order = ['vit', 'min', 'oth', 'ext'].filter(k => microParts[k]);
+  order.sort((a, b) => (microParts[b].has > 0) - (microParts[a].has > 0));
+  $('microGroups').innerHTML = order.map(k => {
+    const g = microParts[k];
+    const open = microManual[k] !== undefined ? microManual[k] : g.has > 0;
+    return `<div class="micro-group"><div class="micro-header" data-mg="${k}"><span>${g.title}</span><span>${g.gaps ? `<em>${g.gaps} LÜCKEN</em>` : ''}${open ? '▲' : '▼'}</span></div><div class="micro-list${open ? ' open' : ''}">${g.html}</div></div>`;
+  }).join('');
+}
+$('microGroups').addEventListener('click', e => {
+  const h = e.target.closest('[data-mg]'); if (!h) return;
+  microManual[h.dataset.mg] = !h.nextElementSibling.classList.contains('open');
+  layoutMicro();
+});
 
 function renderExtended() {
   const t = dayTotals(todayMeals);
@@ -1412,7 +1419,7 @@ function renderExtended() {
     const warn = r < 0.2 ? ' (zu wenig ω3)' : r > 0.5 ? ' (viel ω3)' : ' (gut)';
     ratioHtml = `<div class="note" style="margin-top:6px;padding:6px 0;border-top:1px dashed var(--track);"><b>ω3 : ω6 =</b> 1 : ${(1 / r).toFixed(1)} <span style="color:${r < 0.2 ? 'var(--pink)' : 'var(--muted)'}">${warn}</span> <span style="color:var(--muted)">(Ziel 1:2 bis 1:5)</span></div>`;
   }
-  const html = EXTENDED.map(e => {
+  const items = EXTENDED.map(e => {
     const v = t[e.k] || 0;
     const has = hasAny(e.k);
     const display = has ? `${fmt(v)} ${e.unit}` : '–';
@@ -1420,9 +1427,11 @@ function renderExtended() {
     if (e.ul && v > e.ul) warn = ` <span style="color:var(--red);font-size:10px;">ÜBER UL</span>`;
     const pct = e.ref ? Math.min(100, v / e.ref * 100) : 0;
     const color = e.ul && v > e.ul ? 'var(--red)' : 'var(--sky)';
-    return `<div class="micro-item"><span>${e.label}</span><div class="bar"><i style="width:${pct}%;background:${color};"></i></div><b style="color:${e.ul && v > e.ul ? 'var(--red)' : 'inherit'}">${display}${warn}</b></div>`;
-  }).join('');
-  $('extendedValues').innerHTML = html + bcaaHtml + ratioHtml;
+    return { has, h: `<div class="micro-item"><span>${e.label}</span><div class="bar"><i style="width:${pct}%;background:${color};"></i></div><b style="color:${e.ul && v > e.ul ? 'var(--red)' : 'inherit'}">${display}${warn}</b></div>` };
+  });
+  const html = items.filter(i => i.has).concat(items.filter(i => !i.has)).map(i => i.h).join('');
+  microParts.ext = { title: 'WEITERE WERTE', html: html + bcaaHtml + ratioHtml, has: items.some(i => i.has) ? 1 : 0, gaps: 0 };
+  layoutMicro();
 }
 
 /* ================= Profil / Schritte ================= */
@@ -1447,6 +1456,39 @@ function logWeight() {
   saveProfile();
   showToast(`Gewicht gespeichert: ${w} kg`);
 }
+let stepsDate = null;
+function updateStepBtn() {
+  const sc = todaySteps(), el = $('stepBtnTxt');
+  if (el) el.textContent = sc ? sc.toLocaleString('de-DE') : '';
+}
+function shortDate(ds) { return ds.slice(8) + '.' + ds.slice(5, 7) + '.'; }
+function openSteps(ds) {
+  stepsDate = (typeof ds === 'string' && ds) ? ds : today;
+  const isToday = stepsDate === today;
+  const cur = isToday ? (steps.date === today ? Number(steps.count) || 0 : 0) : (Number(stepsLog[stepsDate]) || 0);
+  $('stepsTitle').textContent = isToday ? 'Schritte heute' : 'Schritte am ' + shortDate(stepsDate);
+  $('stepsInput').value = cur > 0 ? cur : '';
+  $('stepsNote').textContent = 'Mehr Schritte heißt mehr Kalorienverbrauch: Dein Kalorienziel steigt mit deinen Schritten' + (isToday ? ` (aktuell Faktor ${getTargets(todaySteps()).factor.toFixed(2)}).` : '.') + ' Ohne Eingabe rechnet die App mit einem durchschnittlichen Tag. Leer lassen = Schritte löschen.';
+  $('stepsOverlay').classList.remove('hidden');
+  setTimeout(() => $('stepsInput').focus(), 50);
+}
+function closeSteps() { $('stepsOverlay').classList.add('hidden'); }
+function submitSteps() {
+  const ds = stepsDate || today, v = $('stepsInput').value;
+  const had = ds === today ? todaySteps() : Number(stepsLog[ds]) || 0;
+  const doSave = () => { saveStepsFor(ds, v); closeSteps(); };
+  if (had && !(Number(v) > 0)) {
+    showDialog('Löschen', 'Schritte dieses Tages wirklich entfernen?', [{ text: 'Abbrechen' }, { text: 'Entfernen', primary: true, action: doSave }]);
+  } else doSave();
+}
+function saveStepsFor(ds, val) {
+  const c = Number(val) > 0 ? Math.round(Number(val)) : 0;
+  if (ds === today) { steps = { date: today, count: c }; jset('essenlog_steps', steps); }
+  if (c > 0) stepsLog[ds] = c; else delete stepsLog[ds];
+  jset('essenlog_stepslog', stepsLog);
+  calcAll();
+  if (!$('tab-history').classList.contains('hidden')) renderHistory();
+}
 function saveSteps(val) {
   steps = { date: today, count: Number(val) || 0 };
   jset('essenlog_steps', steps);
@@ -1456,7 +1498,17 @@ function saveSteps(val) {
 }
 
 /* ================= Such-Modal ================= */
-function openModal() {
+let addDate = null;
+function addToDate() {
+  const v = $('histAddDate').value;
+  if (!v) { showDialog('Hinweis', 'Bitte zuerst ein Datum wählen.', [{ text: 'OK', primary: true }]); return; }
+  if (v > today) { showDialog('Hinweis', 'Das Datum liegt in der Zukunft.', [{ text: 'OK', primary: true }]); return; }
+  openModal(v);
+}
+function openModal(date) {
+  addDate = (typeof date === 'string' && date && date !== today) ? date : null;
+  const hh = $('modal').querySelector('.header h1');
+  if (hh) hh.textContent = addDate ? 'HINZUFÜGEN · ' + shortDate(addDate) : 'HINZUFÜGEN';
   $('modal').classList.remove('hidden');
   $('foodSearch').value = '';
   searchFood('');
@@ -1492,8 +1544,8 @@ function damerauLevenshtein(a, b) {
   return matrix[b.length][a.length];
 }
 
-const DRINK_KEYWORDS = /saft|limonade|cola|bier|wein|sekt|schorle|smoothie|kaffee|espresso|tee|kakao|getränk|drink|bowle|likör|schnaps|wodka|whisky|energy|sportgetränk|mineralwasser|wasser|eistee|mate|latte|kombucha/i;
-const DRINK_PORTIONS = [['1 Glas (200 ml)', 200], ['1 Tasse (150 ml)', 150], ['1 Becher (250 ml)', 250], ['1 Dose (330 ml)', 330], ['1 Flasche (500 ml)', 500], ['1 Flasche (750 ml)', 750], ['1 Shot (20 ml)', 20], ['100 ml', 100]];
+const DRINK_KEYWORDS = /^(vollmilch|milch|buttermilch|kefir|kuhmilch|hafermilch|sojamilch|mandelmilch|haferdrink)(\s|,|\(|$)|saft|limonade|cola|bier|wein|sekt|schorle|smoothie|kaffee|espresso|tee|kakao|getränk|drink|bowle|likör|schnaps|wodka|whisky|energy|sportgetränk|mineralwasser|wasser|eistee|mate|latte|kombucha/i;
+const DRINK_PORTIONS = [['1 Shot (20 ml)', 20], ['330 ml', 330], ['500 ml', 500]];
 
 const DIET_BLOCKLIST = {
   vegan: /fleisch|hähnchen|huhn|rind|schwein|kalb|lamm|fisch|forelle|thunfisch|garnele|krabbe|käse|milch|joghurt|quark|butter|sahne|hühnerei|\bei\b|honig|gelatine|wurst|schinken|speck|salami|skyr|kefir|molke/i,
@@ -1655,6 +1707,7 @@ const PORTIONS = [
   [/^zwiebel/i, [['1 Zwiebel', 60]]],
   [/^(milch|vollmilch|buttermilch|kefir|kuhmilch)/i, [['1 Glas (200 ml)', 200], ['1 Tasse (150 ml)', 150], ['1 EL', 15]]],
   [/^(joghurt|skyr|speisequark|quark)/i, [['1 Becher (150 g)', 150], ['1 EL', 25], ['1 TL', 8]]],
+  [/^(?!leberkäse)(.*)(schinken|wurst|salami|aufschnitt|speck|mortadella)/i, [['1 Scheibe', 20], ['1 Scheibe dünn', 10]]],
   [/käse/i, [['1 Scheibe', 25], ['1 EL gerieben', 10]]],
   [/^haferflocken|^hafer flocken/i, [['1 Portion (40 g)', 40], ['1 EL', 10], ['1 TL', 4]]],
   [/^(reis|teigwaren|vollkornteigwaren|eierteigwaren).*roh/i, [['1 Portion roh (80 g)', 80], ['1 EL', 15]]],
@@ -1663,7 +1716,7 @@ const PORTIONS = [
   [/^butter /i, [['1 Portion', 10], ['1 TL', 5]]],
   [/^(honig|blütenhonig|sirup|zucker)/i, [['1 EL', 20], ['1 TL', 7]]],
   [/^(erdnussbutter|nussmus|nutella|marmelade|konfitüre)/i, [['1 EL', 15], ['1 TL', 5]]],
-  [/nuss|mandel|walnuss|cashew|haselnuss|erdnuss|pistazie/i, [['1 Handvoll', 25], ['1 EL', 12]]],
+  [/nuss|mandel|walnuss|cashew|haselnuss|erdnuss|pistazie/i, [['1 EL', 12]]],
   [/saat|samen|leinsamen|chia|sesam|sonnenblumenkern|kürbiskern/i, [['1 EL', 12], ['1 TL', 4]]],
   [/espresso/i, [['1 Espresso (30 ml)', 30], ['1 doppelter (60 ml)', 60]]],
   [/kaffee/i, [['1 Tasse (150 ml)', 150], ['1 Becher (200 ml)', 200]]],
@@ -1680,7 +1733,7 @@ function portionsFor(name) {
     if (!merged.some(p => /TL/i.test(p[0]))) merged.push(['1 TL (~5 g)', 5]);
     return merged;
   }
-  return [['100 g', 100], ['1 Portion (200 g)', 200], ['1 EL (~15 g)', 15], ['1 TL (~5 g)', 5], ['1 Handvoll (~25 g)', 25]];
+  return [['100 g', 100], ['1 EL (~15 g)', 15], ['1 TL (~5 g)', 5]];
 }
 
 function openAmount(food, editIndex = null, callback = null) {
@@ -1832,7 +1885,18 @@ function confirmAmount() {
   } else {
     const n = {};
     ALLK.forEach(k => n[k] = food[k] == null ? null : food[k]);
-    todayMeals.push({ id: food.id, name: food.name, grams: g, n, meal: mealCat, ts: Date.now(), portion: portionLabel });
+    const entry = { id: food.id, name: food.name, grams: g, n, meal: mealCat, ts: Date.now(), portion: portionLabel };
+    if (addDate) {
+      const dd = new Date(addDate + 'T12:00:00'), nw = new Date(); dd.setHours(nw.getHours(), nw.getMinutes());
+      entry.ts = dd.getTime();
+      const arr = loadMeals(addDate); arr.push(entry); jset('essenlog_meals_' + addDate, arr);
+      const doneDate = addDate; addDate = null;
+      lastGrams[food.id] = g; jset('essenlog_lastgrams', lastGrams);
+      recentIds = [food.id].concat(recentIds.filter(i => i !== food.id)).slice(0, 12); jset('essenlog_recent', recentIds);
+      closeSheet(); renderHistory(); showToast('Hinzugefügt am ' + shortDate(doneDate));
+      return;
+    }
+    todayMeals.push(entry);
   }
   lastGrams[food.id] = g; jset('essenlog_lastgrams', lastGrams);
   recentIds = [food.id].concat(recentIds.filter(i => i !== food.id)).slice(0, 12); jset('essenlog_recent', recentIds);
@@ -1899,6 +1963,7 @@ function syncNaCl(src) {
 
 /* ================= Scanner ================= */
 function startScanner() {
+  addDate = null;
   if (typeof Html5Qrcode === 'undefined') { showDialog('Fehler', 'Scanner nicht geladen (offline?).', [{ text: 'OK', primary: true }]); return; }
   $('scannerModal').classList.remove('hidden');
   html5QrCode = new Html5Qrcode('reader', { formatsToSupport: [Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8, Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E] });
@@ -2064,31 +2129,41 @@ function renderHistory() {
     : '<div class="note">Keine häufigen Lücken.</div>';
 }
 
+function dayButtons(ds) {
+  return `<div class="btn-group" style="margin-top:8px;"><button class="btn btn-outline btn-sm" style="flex:1;" onclick="event.stopPropagation(); openModal('${ds}')">+ EINTRAG</button><button class="btn btn-outline btn-sm" style="flex:1;" onclick="event.stopPropagation(); openSteps('${ds}')">SCHRITTE</button></div>`;
+}
 function toggleDayEdit(ds) {
   const el = $('hist-edit-' + ds);
   if (!el) return;
   if (!el.classList.contains('hidden')) { el.classList.add('hidden'); return; }
   const meals = ds === today ? todayMeals : loadMeals(ds);
   if (!meals.length) {
-    el.innerHTML = '<div class="note" style="padding:6px;">Keine Einträge.</div>';
+    el.innerHTML = '<div class="note" style="padding:6px;">Keine Einträge.</div>' + dayButtons(ds);
   } else {
     el.innerHTML = meals.map((m, i) => {
       const f = m.grams / 100;
       const time = m.ts ? new Date(m.ts).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
       return `<div class="meal-item">
-        <div class="txt" onclick="event.stopPropagation();"><div class="name">${esc(m.name)}</div><div class="macros">${fmt(m.grams)} g · ${Math.round((m.n.kcal || 0) * f)} kcal${time ? ' · ' + time : ''}</div></div>
+        <div class="txt" onclick="event.stopPropagation();"><div class="name">${esc(m.name)}</div><div class="macros">${fmt(m.grams)} ${unitOf(m.name)} · ${Math.round((m.n.kcal || 0) * f)} kcal${time ? ' · ' + time : ''}</div></div>
         <button onclick="event.stopPropagation(); deleteMealFromDay('${ds}', ${i})" aria-label="Löschen">&times;</button>
       </div>`;
-    }).join('') + `<button class="btn btn-outline btn-sm" style="width:100%;margin-top:6px;" onclick="event.stopPropagation(); deleteAllFromDay('${ds}')">TAG KOMPLETT LÖSCHEN</button>`;
+    }).join('') + `<button class="btn btn-outline btn-sm" style="width:100%;margin-top:6px;" onclick="event.stopPropagation(); deleteAllFromDay('${ds}')">TAG KOMPLETT LÖSCHEN</button>` + dayButtons(ds);
   }
   el.classList.remove('hidden');
 }
 function deleteMealFromDay(ds, idx) {
-  if (ds === today) { todayMeals.splice(idx, 1); saveMeals(); refresh(); }
-  else { const m = loadMeals(ds); m.splice(idx, 1); jset('essenlog_meals_' + ds, m); }
-  const el = $('hist-edit-' + ds);
-  if (el) { el.classList.add('hidden'); toggleDayEdit(ds); }
-  renderHistory();
+  const list = ds === today ? todayMeals : loadMeals(ds);
+  const nm = list[idx] ? list[idx].name : 'Eintrag';
+  showDialog('Löschen', `„${nm}“ wirklich löschen?`, [
+    { text: 'Abbrechen' },
+    { text: 'Löschen', primary: true, action: () => {
+      if (ds === today) { todayMeals.splice(idx, 1); saveMeals(); refresh(); }
+      else { const m = loadMeals(ds); m.splice(idx, 1); jset('essenlog_meals_' + ds, m); }
+      const el = $('hist-edit-' + ds);
+      if (el) { el.classList.add('hidden'); toggleDayEdit(ds); }
+      renderHistory();
+    } }
+  ]);
 }
 function deleteAllFromDay(ds) {
   showDialog('Löschen', 'Alle Einträge dieses Tages löschen?', [
@@ -2156,7 +2231,7 @@ function renderRecipeIngredients() {
   const list = $('recipeIngList');
   if (!recipeDraft.ingredients.length) list.innerHTML = '<div class="note">Noch keine Zutaten.</div>';
   else list.innerHTML = recipeDraft.ingredients.map((ing, i) =>
-    `<div class="meal-item"><div class="txt"><div class="name">${esc(ing.name)}</div><div class="macros">${fmt(ing.grams)} g · ${Math.round((ing.n.kcal || 0) * ing.grams / 100)} kcal</div></div><button onclick="removeRecipeIngredient(${i})" aria-label="Löschen">&times;</button></div>`
+    `<div class="meal-item"><div class="txt"><div class="name">${esc(ing.name)}</div><div class="macros">${fmt(ing.grams)} ${unitOf(ing.name)} · ${Math.round((ing.n.kcal || 0) * ing.grams / 100)} kcal</div></div><button onclick="removeRecipeIngredient(${i})" aria-label="Löschen">&times;</button></div>`
   ).join('');
   const tot = { kcal: 0, prot: 0, fat: 0, carb: 0, totalGrams: 0 };
   recipeDraft.ingredients.forEach(ing => {
@@ -2178,7 +2253,13 @@ function addRecipeIngredient() {
   searchFood('');
   $('foodSearch').focus();
 }
-function removeRecipeIngredient(i) { recipeDraft.ingredients.splice(i, 1); renderRecipeIngredients(); }
+function removeRecipeIngredient(i) {
+  const ing = recipeDraft.ingredients[i]; if (!ing) return;
+  showDialog('Entfernen', `„${ing.name}“ wirklich aus dem Rezept entfernen?`, [
+    { text: 'Abbrechen' },
+    { text: 'Entfernen', primary: true, action: () => { recipeDraft.ingredients.splice(i, 1); renderRecipeIngredients(); } }
+  ]);
+}
 
 function saveRecipe() {
   if (!recipeDraft) return;
@@ -2209,6 +2290,7 @@ function saveRecipe() {
   showToast(`Rezept „${name}" gespeichert`);
 }
 function logRecipe(id) {
+  addDate = null;
   const food = customFoods.find(f => f.id === id);
   if (!food) { showToast('Rezept nicht gefunden'); return; }
   openAmount(food);
@@ -2236,7 +2318,7 @@ function showShoppingList() {
   const items = Object.values(agg).sort((a, b) => a.name.localeCompare(b.name));
   $('shoppingContent').innerHTML = items.length
     ? '<div class="note" style="margin-bottom:12px;">' + items.length + ' Posten aus ' + recipes.length + ' Rezept(en).</div>' +
-      items.map(i => `<div class="row" style="padding:10px 0;border-bottom:1px solid var(--track);"><span>${esc(i.name)}</span><b class="mono">${Math.round(i.grams)} g</b></div>`).join('')
+      items.map(i => `<div class="row" style="padding:10px 0;border-bottom:1px solid var(--track);"><span>${esc(i.name)}</span><b class="mono">${Math.round(i.grams)} ${unitOf(i.name)}</b></div>`).join('')
     : '<div class="note">Noch keine Rezepte mit Zutaten.</div>';
   $('shoppingModal').classList.remove('hidden');
 }
@@ -2339,7 +2421,7 @@ ${['breakfast', 'lunch', 'dinner', 'snack'].map(k => {
   return `<h3>${MEAL_LABELS[k]}</h3><table>
     <tr><th>Lebensmittel</th><th class="right">Menge</th><th class="right">kcal</th><th class="right">P</th><th class="right">F</th><th class="right">KH</th></tr>
     ${items.map(m => { const f = m.grams / 100;
-      return `<tr><td>${esc(m.name)}</td><td class="right">${fmt(m.grams)} g</td><td class="right">${Math.round((m.n.kcal || 0) * f)}</td><td class="right">${((m.n.prot || 0) * f).toFixed(1)}</td><td class="right">${((m.n.fat || 0) * f).toFixed(1)}</td><td class="right">${((m.n.carb || 0) * f).toFixed(1)}</td></tr>`;
+      return `<tr><td>${esc(m.name)}</td><td class="right">${fmt(m.grams)} ${unitOf(m.name)}</td><td class="right">${Math.round((m.n.kcal || 0) * f)}</td><td class="right">${((m.n.prot || 0) * f).toFixed(1)}</td><td class="right">${((m.n.fat || 0) * f).toFixed(1)}</td><td class="right">${((m.n.carb || 0) * f).toFixed(1)}</td></tr>`;
     }).join('')}
   </table>`;
 }).join('')}
@@ -2387,9 +2469,9 @@ function init() {
   $('pProtOv').value = profile.protOv || '';
   if ($('pTargetWeight')) $('pTargetWeight').value = profile.targetWeight || '';
   if ($('pProtPerKg')) $('pProtPerKg').value = profile.protPerKg || '';
-  $('stepInput').value = steps.date === today ? (steps.count || '') : '';
   if (profile.calOv || profile.protOv || profile.protPerKg) $('ovDetails').open = true;
   updateDietUI();
+  const hd = $('histAddDate'); if (hd) { const y = new Date(); y.setDate(y.getDate() - 1); hd.value = dstr(y); hd.max = today; }
   renderRecipes();
   refresh();
   renderBackupInfo();
