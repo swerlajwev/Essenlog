@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Essenlog</title>
 <meta name="theme-color" content="#ffffff">
+<script>try{var _t=JSON.parse(localStorage.getItem('essenlog_theme')||'"light"');var _d=_t==='dark'||(_t==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',_d?'dark':'light');}catch(e){}</script>
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="48x48" href="./favicon-48.png">
@@ -19,7 +20,9 @@
     --bg:#fff; --ink:#09090b; --muted:#52525b; --line:#d4d4d8; --track:#e4e4e7;
     --lime:#a3e635; --sky:#38bdf8; --pink:#ec4899; --red:#dc2626; --lime-tint:#f7fee7; --amber:#f59e0b; --violet:#8b5cf6; --green:#65a30d;
     --font-d:'Oswald',sans-serif; --font-m:'JetBrains Mono',monospace; --font-b:'Inter',sans-serif;
+    --card:#fff; color-scheme:light;
   }
+  html{background:var(--bg);}
   *{box-sizing:border-box;}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-b);-webkit-tap-highlight-color:transparent;}
   #app{max-width:480px;margin:0 auto;padding:20px 20px 90px;display:flex;flex-direction:column;gap:12px;}
@@ -47,7 +50,7 @@
 
   .input-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
   .input-group label{font-size:11px;font-family:var(--font-m);letter-spacing:.1em;color:var(--muted);}
-  .input-group input, .input-group select{padding:10px;border:1px solid var(--line);font-family:var(--font-b);font-size:16px;outline:none;width:100%;border-radius:0;background:#fff;}
+  .input-group input, .input-group select{padding:10px;border:1px solid var(--line);font-family:var(--font-b);font-size:16px;outline:none;width:100%;border-radius:0;background:var(--card);color:var(--ink);min-width:0;}
   .input-group input:focus, .input-group select:focus{border-color:var(--ink);}
 
   #bottomNav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;z-index:80;padding-bottom:env(safe-area-inset-bottom);max-width:480px;margin:0 auto;}
@@ -106,7 +109,7 @@
   .hist-edit .meal-item{margin-bottom:6px;}
   .seg{display:flex;gap:6px;}
   .seg button{flex:1;}
-  .seg .on{background:var(--ink);color:#fff;}
+  .seg button.on{background:var(--ink) !important;color:var(--bg) !important;border-color:var(--ink) !important;}
 
   .note{font-size:11px;color:var(--muted);line-height:1.5;}
 
@@ -162,14 +165,57 @@
   .mc-dinner{--mc:#7c3aed;--mt:rgba(139,92,246,.10);}
   .mc-snack{--mc:#db2777;--mt:rgba(236,72,153,.09);}
   [data-theme="dark"] .mc-breakfast{--mc:#fbbf24;} [data-theme="dark"] .mc-lunch{--mc:#38bdf8;} [data-theme="dark"] .mc-dinner{--mc:#a78bfa;} [data-theme="dark"] .mc-snack{--mc:#f472b6;}
-  #tab-history .frame{border-top:3px solid var(--sky);}
-  #tab-recipes .frame{border-top:3px solid var(--lime);}
-  #tab-profile .frame{border-top:3px solid var(--pink);}
-  .recipe-card{border-left:5px solid var(--sky);}
+
+  /* ===== Übersicht: Eiweiß-Kreis + Einzelbalken ===== */
+  .ringcard{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;}
+  .ring.big{width:200px;height:200px;}
+  .ring.big svg{width:200px;height:200px;}
+  #protRing{transition:stroke-dasharray .4s ease;}
+  .ring.big .rc{gap:2px;}
+  .ring.big .big-num{font-family:var(--font-d);font-size:52px;font-weight:600;line-height:1;}
+  .vrow{display:flex;flex-direction:column;gap:5px;}
+  .vrow .vh{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:13px;font-weight:500;}
+  .vrow .vh b{font-family:var(--font-m);font-size:12px;font-weight:600;white-space:nowrap;}
+  .vrow .vh b.over{color:var(--red);}
+  .vrow .bar,.vrow .bar i{height:10px;}
+  .vrow .bar i{width:0;transition:width .35s ease;}
+  .bar i.over{background:var(--red) !important;}
+  .vlist{display:flex;flex-direction:column;gap:14px;}
+
+  /* ===== Verlauf ===== */
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .stat{border:1px solid var(--line);padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .stat .eyebrow{font-size:10px;letter-spacing:.1em;}
+  .stat b{font-family:var(--font-d);font-size:20px;font-weight:600;overflow-wrap:anywhere;}
+  .month{font-family:var(--font-m);font-size:11px;letter-spacing:.15em;color:var(--muted);padding:14px 0 4px;border-bottom:1px solid var(--line);}
+  .month:first-child{padding-top:0;}
+  .dayrow{display:flex;flex-direction:column;gap:6px;padding:12px 0;cursor:pointer;}
+  .dayrow .dr-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+  .dayrow .dr-head b{font-family:var(--font-d);font-size:15px;font-weight:600;letter-spacing:.04em;}
+  .dayrow .dr-head span{font-family:var(--font-m);font-size:11px;color:var(--muted);}
+  .dr-line{display:grid;grid-template-columns:64px 1fr 96px;align-items:center;gap:8px;font-size:12px;}
+  .dr-line b{font-family:var(--font-m);font-size:11px;text-align:right;font-weight:600;white-space:nowrap;}
+  .dr-line .bar,.dr-line .bar i{height:6px;}
+  .hist-day{border-bottom:1px solid var(--track);}
+  .hist-day:last-child{border-bottom:0;}
+  .hist-day .hist-edit{border-bottom:0;padding:0 0 12px;}
+
+  /* ===== Profil ===== */
+  .sect{font-family:var(--font-d);font-size:16px;font-weight:500;letter-spacing:.08em;margin:18px 0 8px;}
+  .sect:first-of-type{margin-top:4px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .grid2 .input-group{margin-bottom:0;min-width:0;}
+  .fold{border-top:1px solid var(--track);padding-top:10px;}
+  .fold summary{cursor:pointer;font-family:var(--font-m);font-size:12px;letter-spacing:.05em;list-style:none;display:flex;justify-content:space-between;align-items:center;}
+  .fold summary::-webkit-details-marker{display:none;}
+  .fold summary::after{content:"▼";font-size:10px;color:var(--muted);}
+  .fold[open] summary::after{content:"▲";}
+  .fold .fold-body{display:flex;flex-direction:column;gap:12px;margin-top:12px;}
+  .fold .input-group{margin-bottom:0;}
   .nwarn{background:var(--pink);color:#fff;font-size:12px;padding:8px 10px;margin:8px 0;line-height:1.4;}
   .nok{background:var(--lime);color:#000;font-size:12px;padding:6px 10px;margin:8px 0;}
 
-  [data-theme="dark"] { --bg:#0a0a0a; --ink:#fafafa; --muted:#a1a1aa; --line:#3f3f46; --track:#27272a; --lime-tint:#1a2e05; }
+  [data-theme="dark"] { --bg:#0a0a0a; --ink:#fafafa; --muted:#a1a1aa; --line:#3f3f46; --track:#27272a; --lime-tint:#1a2e05; --card:#18181b; color-scheme:dark; }
   [data-theme="dark"] body { background:var(--bg); color:var(--ink); }
   [data-theme="dark"] .frame,
   [data-theme="dark"] #modal,
@@ -198,7 +244,6 @@
   }
   [data-theme="dark"] .frame::before,
   [data-theme="dark"] .frame::after { border-color: var(--ink); }
-  [data-theme="dark"] .seg .on { background: var(--lime); color: #000; }
   [data-theme="dark"] details[style*="background:#f4f4f5"],
   [data-theme="dark"] details[style*="background:var(--track)"] { background: #27272a !important; }
   [data-theme="dark"] .food-item:active { background: #27272a; }
@@ -216,46 +261,26 @@
       </div>
     </div>
 
-    <div class="frame col">
-      <div class="row"><span class="eyebrow">KALORIEN</span><span class="mono" style="font-size:13px;font-weight:600;" id="calRemaining">0 offen</span></div>
-      <div class="hero-num" id="calCurrent">0 <span class="mono" style="font-size:14px;color:var(--muted);">/ 0 KCAL</span></div>
-      <div class="bar big"><i style="width:0%;background:var(--ink);" id="calBar"></i></div>
-    </div>
-
-    <div class="frame">
-      <div class="ring-wrap">
-        <div class="ring">
-          <svg width="130" height="130" viewBox="0 0 130 130"><circle cx="65" cy="65" r="54" fill="none" style="stroke:var(--track);" stroke-width="14"/><circle id="protRing" cx="65" cy="65" r="54" fill="none" style="stroke:var(--green);" stroke-width="14" stroke-dasharray="0 339.29"/></svg>
-          <div class="rc"><div class="display" style="font-size:34px;font-weight:600;line-height:1;" id="protCurrent">0</div><div class="mono" style="font-size:10px;color:var(--muted);letter-spacing:.1em;">G EIWEISS</div></div>
-        </div>
-        <div class="col" style="gap:4px;">
-          <span class="eyebrow">EIWEISS</span>
-          <div class="display" style="font-size:26px;font-weight:600;" id="protTarget">/ 0 g</div>
-          <div class="mono" style="font-size:12px;color:var(--muted);" id="protRemaining">0 g offen</div>
-        </div>
+    <div class="frame ringcard">
+      <div class="ring big">
+        <svg width="200" height="200" viewBox="0 0 200 200"><circle cx="100" cy="100" r="84" fill="none" style="stroke:var(--track);" stroke-width="16"/><circle id="protRing" cx="100" cy="100" r="84" fill="none" style="stroke:var(--green);" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 527.79"/></svg>
+        <div class="rc"><span class="eyebrow">EIWEISS</span><div class="big-num" id="protCurrent">0</div><div class="mono" style="font-size:12px;color:var(--muted);" id="protTarget">von 0 g</div></div>
       </div>
+      <div class="mono" style="font-size:12px;color:var(--muted);" id="protRemaining">0 g offen</div>
     </div>
 
     <div class="frame col">
-      <span class="eyebrow">MAKROS</span>
-      <div class="split"><i id="msF" style="background:var(--pink);width:0;"></i><i id="msC" style="background:var(--sky);width:0;"></i><i id="msP" style="background:var(--green);width:0;"></i></div>
-      <div class="mono" style="font-size:10px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;"><span><b style="color:var(--pink);">■</b> Fett</span><span><b style="color:var(--sky);">■</b> KH</span><span><b style="color:var(--green);">■</b> Eiweiß</span><span>(Anteil an kcal)</span></div>
-      <div class="mini-row">
-        <div class="mini"><span class="eyebrow">FETT</span><b id="mFat">0 g</b></div>
-        <div class="mini"><span class="eyebrow">KH</span><b id="mCarb">0 g</b></div>
-        <div class="mini"><span class="eyebrow">BALLAST.</span><b id="mFib">0 g</b></div>
+      <span class="eyebrow">TAGESWERTE</span>
+      <div class="vlist">
+      <div class="vrow"><div class="vh"><span>Kalorien</span><b id="v-kcal">0 / 0</b></div><div class="bar"><i id="b-kcal" style="background:var(--ink);"></i></div></div>
+      <div class="vrow"><div class="vh"><span>Fett</span><b id="v-fat">0 / 0</b></div><div class="bar"><i id="b-fat" style="background:var(--amber);"></i></div></div>
+      <div class="vrow"><div class="vh"><span>Kohlenhydrate</span><b id="v-carb">0 / 0</b></div><div class="bar"><i id="b-carb" style="background:var(--sky);"></i></div></div>
+      <div class="vrow"><div class="vh"><span>Ballaststoffe</span><b id="v-fib">0 / 0</b></div><div class="bar"><i id="b-fib" style="background:var(--green);"></i></div></div>
+      <div class="vrow"><div class="vh"><span>Zucker (max)</span><b id="v-sugar">0 / 0</b></div><div class="bar"><i id="b-sugar" style="background:var(--violet);"></i></div></div>
+      <div class="vrow"><div class="vh"><span>Ges. Fettsäuren (max)</span><b id="v-sat">0 / 0</b></div><div class="bar"><i id="b-sat" style="background:var(--pink);"></i></div></div>
+      <div class="vrow"><div class="vh"><span>Salz (max)</span><b id="v-salt">0 / 0</b></div><div class="bar"><i id="b-salt" style="background:var(--muted);"></i></div></div>
       </div>
-      <div class="mini-row">
-        <div class="mini"><span class="eyebrow">ZUCKER</span><b id="mSugar">0 g</b></div>
-        <div class="mini"><span class="eyebrow">GES. FETT</span><b id="mSat">0 g</b></div>
-        <div class="mini"><span class="eyebrow">SALZ</span><b id="mSalt">0 g</b></div>
-      </div>
-    </div>
-
-    <div class="frame col">
-      <span class="eyebrow">SCHRITTE HEUTE</span>
-      <input type="number" inputmode="numeric" id="stepInput" placeholder="z.B. 8500" style="padding:8px;border:1px solid var(--line);font-family:var(--font-m);font-size:16px;border-radius:0;" onchange="saveSteps(this.value)">
-      <div class="mono" style="font-size:11px;color:var(--muted);" id="stepFactor">Faktor: 1.55</div>
+      <div class="note">Fett- und KH-Ziel sind Richtwerte (30 % der Kalorien aus Fett, der Rest KH). Netto-KH heute: <b id="netCarbs">0 g</b></div>
     </div>
 
     <div class="frame col">
@@ -265,12 +290,9 @@
     </div>
 
     <div class="frame col">
-      <span class="eyebrow">ZIELE IM BLICK</span>
-      <div class="goal-item"><span>Ballaststoffe</span><div class="bar"><i id="fibBar" style="background:var(--sky);"></i></div><b id="fibVal">0 / 30 g</b></div>
-      <div class="goal-item"><span>Zucker (max)</span><div class="bar"><i id="sugarBar" style="background:var(--sky);"></i></div><b id="sugarVal">0 / – g</b></div>
-      <div class="goal-item"><span>Ges. Fettsäuren (max)</span><div class="bar"><i id="satBar" style="background:var(--sky);"></i></div><b id="satVal">0 / – g</b></div>
-      <div class="goal-item"><span>Salz (max)</span><div class="bar"><i id="saltBar" style="background:var(--sky);"></i></div><b id="saltVal">0 / 6 g</b></div>
-      <div class="note" style="margin-top:8px;">Netto-KH: <b id="netCarbs">0 g</b> · Fett-Anteil: <b id="fatPct">0 %</b> · Protein-Anteil: <b id="protPct">0 %</b> · KH-Anteil: <b id="carbPct">0 %</b></div>
+      <div class="row"><span class="eyebrow">SCHRITTE HEUTE</span><span class="mono" style="font-size:11px;color:var(--muted);" id="stepFactor"></span></div>
+      <input type="number" inputmode="numeric" id="stepInput" placeholder="z.B. 8500" style="padding:8px;border:1px solid var(--line);font-family:var(--font-m);font-size:16px;border-radius:0;" onchange="saveSteps(this.value)">
+      <div class="note">Mehr Bewegung heißt mehr Kalorienverbrauch: Dein Kalorienziel steigt mit deinen Schritten. Ohne Eingabe rechnet die App mit einem durchschnittlichen Tag. Die Schritte siehst du pro Tag im Verlauf.</div>
     </div>
 
     <div class="frame col">
@@ -315,14 +337,14 @@
 
   <div id="tab-history" class="hidden">
     <h1 class="display" style="margin-bottom:12px;">VERLAUF</h1>
-    <div class="seg" style="margin-bottom:12px;">
-      <button class="btn btn-outline btn-sm" id="h7" onclick="setHist(7)">7 TAGE</button>
-      <button class="btn btn-outline btn-sm" id="h30" onclick="setHist(30)">30 TAGE</button>
+    <div class="frame col">
+      <span class="eyebrow">DURCHSCHNITT ALLER TAGE</span>
+      <div class="stat-grid" id="histSummary"></div>
     </div>
     <div class="frame col">
-      <div class="row"><span class="eyebrow">KALORIEN &amp; EIWEISS</span><span class="mono" style="font-size:11px;color:var(--muted);" id="histAvg"></span></div>
+      <span class="eyebrow">ALLE TAGE</span>
       <div id="histRows"></div>
-      <div class="note">Tagesziele = aktuelle Profilwerte. Tippe auf einen Tag zum Bearbeiten.</div>
+      <div class="note">Tippe auf einen Tag, um Einträge zu bearbeiten. Das Tagesziel richtet sich nach deinem Profil und den Schritten des Tages.</div>
     </div>
     <div class="frame col">
       <span class="eyebrow">GEWICHT</span>
@@ -333,7 +355,7 @@
       <div id="weekCompare"></div>
     </div>
     <div class="frame col">
-      <span class="eyebrow">HÄUFIGE LÜCKEN (LETZTE 7 TAGE)</span>
+      <span class="eyebrow">HÄUFIGE LÜCKEN (ALLE TAGE)</span>
       <div id="histGaps"></div>
     </div>
   </div>
@@ -357,46 +379,60 @@
   </div>
 
   <div id="tab-profile" class="hidden">
-    <h1 class="display" style="margin-bottom:12px;">PROFIL</h1>
+    <h1 class="display" style="margin-bottom:4px;">PROFIL</h1>
+
+    <h2 class="sect">Körper</h2>
     <div class="frame col">
-      <span class="eyebrow">KÖRPERDATEN</span>
-      <div class="input-group"><label>Gewicht (kg)</label><input type="number" inputmode="decimal" step="0.1" id="pWeight" onchange="saveProfile()"></div>
-      <button class="btn btn-outline btn-sm" onclick="logWeight()" style="width:100%;margin-bottom:12px;">HEUTE WIEGEN</button>
-      <div class="input-group"><label>Körperfett (kg)</label><input type="number" inputmode="decimal" step="0.1" id="pFat" onchange="saveProfile()"></div>
-      <div class="input-group"><label>Größe (cm)</label><input type="number" inputmode="numeric" id="pHeight" onchange="saveProfile()"></div>
-      <div class="input-group"><label>Alter</label><input type="number" inputmode="numeric" id="pAge" onchange="saveProfile()"></div>
-      <div class="input-group"><label>Geschlecht</label>
-        <select id="pGender" onchange="saveProfile()"><option value="m">Männlich</option><option value="w">Weiblich</option></select>
+      <div class="grid2">
+        <div class="input-group"><label>Gewicht (kg)</label><input type="number" inputmode="decimal" step="0.1" id="pWeight" onchange="saveProfile()"></div>
+        <div class="input-group"><label>Körperfett (kg)</label><input type="number" inputmode="decimal" step="0.1" id="pFat" onchange="saveProfile()"></div>
+        <div class="input-group"><label>Größe (cm)</label><input type="number" inputmode="numeric" id="pHeight" onchange="saveProfile()"></div>
+        <div class="input-group"><label>Alter</label><input type="number" inputmode="numeric" id="pAge" onchange="saveProfile()"></div>
+        <div class="input-group"><label>Geschlecht</label>
+          <select id="pGender" onchange="saveProfile()"><option value="m">Männlich</option><option value="w">Weiblich</option></select>
+        </div>
+        <div class="input-group"><label>Zielgewicht (kg)</label><input type="number" inputmode="decimal" step="0.1" id="pTargetWeight" placeholder="optional" onchange="saveProfile()"></div>
       </div>
-      <div class="input-group"><label>Zielgewicht (kg, optional)</label><input type="number" inputmode="decimal" step="0.1" id="pTargetWeight" onchange="saveProfile()"></div>
+      <button class="btn btn-outline btn-sm" onclick="logWeight()" style="width:100%;">HEUTE WIEGEN</button>
+      <div class="note">Speichert das Gewicht von heute für die Kurve im Verlauf.</div>
     </div>
-    <div class="frame col" style="background:var(--lime-tint);">
-      <span class="eyebrow" style="color:var(--ink);">BERECHNETE ZIELE</span>
-      <div class="row mono" style="font-size:13px;"><span>Grundumsatz:</span> <b id="calcBmr">0 kcal</b></div>
-      <div class="row mono" style="font-size:13px;"><span>Gesamtbedarf:</span> <b id="calcTdee">0 kcal</b></div>
-      <div class="row mono" style="font-size:13px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);"><span>Kalorienziel:</span> <b id="calcTargetCal">0 kcal</b></div>
-      <div class="row mono" style="font-size:13px;"><span>Eiweißziel:</span> <b id="calcTargetProt">0 g</b></div>
-    </div>
+
+    <h2 class="sect">Ziele</h2>
     <div class="frame col">
-      <span class="eyebrow">ZIEL</span>
-      <select id="pGoal" onchange="saveProfile()" style="padding:10px;border:1px solid var(--line);border-radius:0;background:#fff;font-size:16px;">
-        <option value="halten">Gewicht halten</option><option value="abnehmen">Abnehmen</option>
-        <option value="aufbauen">Muskelaufbau</option><option value="zunehmen">Zunehmen</option>
-        <option value="gesund">Maximal gesund</option>
-      </select>
-      <span class="eyebrow" style="margin-top:6px;">ZIELE SELBST FESTLEGEN (OPTIONAL)</span>
-      <div class="input-group" style="margin-bottom:0;"><label>Kalorienziel (kcal)</label><input type="number" inputmode="numeric" id="pCalOv" placeholder="leer = berechnet" onchange="saveProfile()"></div>
-      <div class="input-group" style="margin-bottom:0;"><label>Eiweißziel (g)</label><input type="number" inputmode="numeric" id="pProtOv" placeholder="leer = berechnet" onchange="saveProfile()"></div>
-      <div class="input-group" style="margin-bottom:0;"><label>Eiweiß pro kg Körpergewicht (g, optional)</label><input type="number" step="0.1" inputmode="decimal" id="pProtPerKg" placeholder="leer = Standard" onchange="saveProfile()"></div>
+      <div class="input-group" style="margin-bottom:0;"><label>Dein Ziel</label>
+        <select id="pGoal" onchange="saveProfile()">
+          <option value="halten">Gewicht halten</option><option value="abnehmen">Abnehmen</option>
+          <option value="aufbauen">Muskelaufbau</option><option value="zunehmen">Zunehmen</option>
+          <option value="gesund">Maximal gesund</option>
+        </select>
+      </div>
+      <div class="stat-grid">
+        <div class="stat"><span class="eyebrow">GRUNDUMSATZ</span><b id="calcBmr">0 kcal</b></div>
+        <div class="stat"><span class="eyebrow">GESAMTBEDARF</span><b id="calcTdee">0 kcal</b></div>
+        <div class="stat"><span class="eyebrow">KALORIENZIEL</span><b id="calcTargetCal">0 kcal</b></div>
+        <div class="stat"><span class="eyebrow">EIWEISSZIEL</span><b id="calcTargetProt">0 g</b></div>
+      </div>
+      <details class="fold" id="ovDetails">
+        <summary>Ziele selbst festlegen (optional)</summary>
+        <div class="fold-body">
+          <div class="input-group"><label>Kalorienziel (kcal)</label><input type="number" inputmode="numeric" id="pCalOv" placeholder="leer = berechnet" onchange="saveProfile()"></div>
+          <div class="input-group"><label>Eiweißziel (g)</label><input type="number" inputmode="numeric" id="pProtOv" placeholder="leer = berechnet" onchange="saveProfile()"></div>
+          <div class="input-group"><label>Eiweiß pro kg Körpergewicht (g)</label><input type="number" step="0.1" inputmode="decimal" id="pProtPerKg" placeholder="leer = Standard" onchange="saveProfile()"></div>
+        </div>
+      </details>
     </div>
+
+    <h2 class="sect">App</h2>
     <div class="frame col">
       <span class="eyebrow">DARSTELLUNG</span>
-      <select id="pTheme" onchange="changeTheme(this.value)" style="padding:10px;border:1px solid var(--line);border-radius:0;background:#fff;font-size:16px;">
-        <option value="auto">Automatisch (System)</option>
-        <option value="light">Hell</option>
-        <option value="dark">Dunkel</option>
-      </select>
+      <div class="seg" id="themeSeg">
+        <button class="btn btn-outline btn-sm" data-mode="light" onclick="changeTheme('light')">HELL</button>
+        <button class="btn btn-outline btn-sm" data-mode="dark" onclick="changeTheme('dark')">DUNKEL</button>
+        <button class="btn btn-outline btn-sm" data-mode="auto" onclick="changeTheme('auto')">SYSTEM</button>
+      </div>
     </div>
+
+    <h2 class="sect">Daten</h2>
     <div class="frame col">
       <span class="eyebrow">CLOUD-SYNC</span>
       <div id="authStatus" class="col"><div class="note">Wird geladen… (Internet nötig)</div></div>
@@ -1202,9 +1238,10 @@ function getTargets(stepCount) {
   const protPerKg = Number(profile.protPerKg) > 0 ? Number(profile.protPerKg) : g[1];
   const prot = Number(profile.protOv) > 0 ? Number(profile.protOv) : Math.round(w * protPerKg);
   const fiber = 30, sugarMax = Math.round(cal * 0.10 / 4), satMax = Math.round(cal * 0.10 / 9), saltMax = 6;
-  return { factor, bmr, tdee, cal, prot, fiber, sugarMax, satMax, saltMax };
+  const fatT = Math.round(cal * 0.30 / 9), carbT = Math.max(0, Math.round((cal - prot * 4 - fatT * 9) / 4));
+  return { factor, bmr, tdee, cal, prot, fiber, sugarMax, satMax, saltMax, fatT, carbT };
 }
-const todaySteps = () => steps.date === today ? (Number(steps.count) || 0) : 0;
+const todaySteps = () => (steps.date === today && Number(steps.count) > 0) ? Number(steps.count) : null;
 
 function dayTotals(meals) {
   const t = { micro: {} };
@@ -1228,60 +1265,38 @@ function dayTotals(meals) {
 /* ================= Rendering ================= */
 function refresh() { calcAll(); renderMeals(); renderMicros(); renderExtended(); }
 
+function setVal(key, cur, tgt, unit, over) {
+  const bar = $('b-' + key), val = $('v-' + key);
+  if (!bar || !val) return;
+  bar.style.width = (tgt > 0 ? Math.min(100, cur / tgt * 100) : 0) + '%';
+  bar.classList.toggle('over', !!over);
+  val.textContent = `${fmt(cur)} / ${fmt(tgt)} ${unit}`;
+  val.classList.toggle('over', !!over);
+}
+
 function calcAll() {
   const sc = todaySteps(), T = getTargets(sc);
-  $('stepFactor').textContent = `Faktor: ${T.factor.toFixed(2)} (${sc} Schritte)`;
+  $('stepFactor').textContent = sc ? `Faktor ${T.factor.toFixed(2)}` : 'Faktor 1.55 (Standard)';
   $('calcBmr').textContent = Math.round(T.bmr) + ' kcal';
   $('calcTdee').textContent = T.tdee + ' kcal';
   $('calcTargetCal').textContent = T.cal + ' kcal';
   $('calcTargetProt').textContent = T.prot + ' g';
 
   const t = dayTotals(todayMeals);
-  const sub = txt => `<span class="mono" style="font-size:13px;color:var(--muted);">${txt}</span>`;
-  const calOver = t.kcal - T.cal;
-  $('calCurrent').innerHTML = Math.round(t.kcal) + ' ' + sub(`/ ${T.cal} KCAL`);
-  $('calRemaining').textContent = calOver > 0 ? `${Math.round(calOver)} drüber` : `${Math.round(T.cal - t.kcal)} offen`;
-  $('calRemaining').style.color = calOver > T.cal * 0.05 ? 'var(--red)' : 'var(--ink)';
-  $('calBar').style.width = (T.cal > 0 ? Math.min(100, t.kcal / T.cal * 100) : 0) + '%';
-  $('calBar').style.background = calOver > T.cal * 0.05 ? 'var(--red)' : 'var(--ink)';
   const ringPct = T.prot > 0 ? Math.min(100, t.prot / T.prot * 100) : 0;
   $('protCurrent').textContent = Math.round(t.prot);
-  $('protTarget').textContent = `/ ${T.prot} g`;
+  $('protTarget').textContent = `von ${T.prot} g`;
   $('protRemaining').textContent = t.prot >= T.prot ? 'Ziel erreicht ✓' : `${Math.round(T.prot - t.prot)} g offen`;
-  $('protRing').setAttribute('stroke-dasharray', `${(ringPct * 339.29 / 100).toFixed(1)} 339.29`);
-  $('mFat').textContent = Math.round(t.fat) + ' g';
-  $('mCarb').textContent = Math.round(t.carb) + ' g';
-  $('mFib').textContent = Math.round(t.fib) + ' g';
-  $('mSugar').textContent = (Math.round(t.sugar * 10) / 10) + ' g';
-  $('mSat').textContent = (Math.round(t.satfat * 10) / 10) + ' g';
-  $('mSalt').textContent = (Math.round(t.salt * 10) / 10) + ' g';
-  {
-    const kT = t.kcal || 1, sf = t.fat * 9 / kT * 100, sc = t.carb * 4 / kT * 100, sp = t.prot * 4 / kT * 100;
-    const sc2 = 100 / Math.max(100, sf + sc + sp);
-    $('msF').style.width = (t.kcal ? sf * sc2 : 0) + '%'; $('msC').style.width = (t.kcal ? sc * sc2 : 0) + '%'; $('msP').style.width = (t.kcal ? sp * sc2 : 0) + '%';
-  }
+  $('protRing').setAttribute('stroke-dasharray', `${(ringPct * 527.79 / 100).toFixed(1)} 527.79`);
 
-  const setGoal = (barId, valId, cur, max, unit, isMax) => {
-    const pct = max > 0 ? Math.min(100, cur / max * 100) : 0;
-    const over = isMax && cur > max;
-    const bar = $(barId), val = $(valId);
-    if (!bar || !val) return;
-    bar.style.width = pct + '%';
-    bar.style.background = over ? 'var(--red)' : 'var(--sky)';
-    val.textContent = `${fmt(cur)} / ${fmt(max)} ${unit}`;
-    val.style.color = over ? 'var(--red)' : 'inherit';
-  };
-  setGoal('fibBar', 'fibVal', t.fib, T.fiber, 'g', false);
-  setGoal('sugarBar', 'sugarVal', t.sugar, T.sugarMax, 'g', true);
-  setGoal('satBar', 'satVal', t.satfat, T.satMax, 'g', true);
-  setGoal('saltBar', 'saltVal', t.salt, T.saltMax, 'g', true);
-
-  const netCarb = Math.max(0, t.carb - t.fib);
-  $('netCarbs').textContent = fmt(netCarb) + ' g';
-  const kcalT = t.kcal || 1;
-  $('fatPct').textContent = Math.round(t.fat * 9 / kcalT * 100) + ' %';
-  $('protPct').textContent = Math.round(t.prot * 4 / kcalT * 100) + ' %';
-  $('carbPct').textContent = Math.round(t.carb * 4 / kcalT * 100) + ' %';
+  setVal('kcal', t.kcal, T.cal, 'kcal', t.kcal > T.cal * 1.05);
+  setVal('fat', t.fat, T.fatT, 'g', t.fat > T.fatT * 1.15);
+  setVal('carb', t.carb, T.carbT, 'g', t.carb > T.carbT * 1.15);
+  setVal('fib', t.fib, T.fiber, 'g', false);
+  setVal('sugar', t.sugar, T.sugarMax, 'g', t.sugar > T.sugarMax);
+  setVal('sat', t.satfat, T.satMax, 'g', t.satfat > T.satMax);
+  setVal('salt', t.salt, T.saltMax, 'g', t.salt > T.saltMax);
+  $('netCarbs').textContent = fmt(Math.max(0, t.carb - t.fib)) + ' g';
 
   const progEl = $('prognosis');
   if (progEl) {
@@ -1435,7 +1450,8 @@ function logWeight() {
 function saveSteps(val) {
   steps = { date: today, count: Number(val) || 0 };
   jset('essenlog_steps', steps);
-  stepsLog[today] = steps.count; jset('essenlog_stepslog', stepsLog);
+  if (steps.count > 0) stepsLog[today] = steps.count; else delete stepsLog[today];
+  jset('essenlog_stepslog', stepsLog);
   calcAll();
 }
 
@@ -1963,32 +1979,48 @@ async function lookupBarcode(code) {
 }
 
 /* ================= Verlauf ================= */
-function setHist(n) { histDays = n; renderHistory(); }
-
 function renderHistory() {
-  $('h7').classList.toggle('on', histDays === 7); $('h30').classList.toggle('on', histDays === 30);
-  let rows = '', sumK = 0, sumP = 0, cnt = 0;
-  const gapAcc = {}; let gapDays = 0;
-  for (let i = 0; i < histDays; i++) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const ds = dstr(d), meals = i === 0 ? todayMeals : loadMeals(ds), t = dayTotals(meals);
-    const T = getTargets(stepsLog[ds]);
-    if (meals.length) { sumK += t.kcal; sumP += t.prot; cnt++; }
-    if (i < 7 && meals.length) {
-      gapDays++;
-      microState(t).forEach(r => { if (!r.nodata) { const a = gapAcc[r.x.k] || (gapAcc[r.x.k] = { x: r.x, sum: 0, n: 0 }); a.sum += Math.min(r.pct, 2); a.n++; } });
-    }
-    const label = i === 0 ? 'HEUTE' : d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }).toUpperCase();
-    rows += `<div class="hist-row" onclick="toggleDayEdit('${ds}')"><div class="top"><span>${label}</span><span>${Math.round(t.kcal)} / ${T.cal} kcal · ${Math.round(t.prot)} / ${T.prot} g P</span></div>
-      <div class="bar" style="height:6px;"><i style="height:6px;width:${T.cal > 0 ? Math.min(100, t.kcal / T.cal * 100) : 0}%;background:${t.kcal > T.cal * 1.05 ? 'var(--red)' : (t.kcal >= T.cal * 0.9 ? 'var(--green)' : 'var(--ink)')};"></i></div>
-      <div class="bar" style="height:6px;"><i style="height:6px;width:${T.prot > 0 ? Math.min(100, t.prot / T.prot * 100) : 0}%;background:var(--lime);"></i></div>
-      </div>
-      <div class="hist-edit hidden" id="hist-edit-${ds}"></div>`;
+  const days = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const m = /^essenlog_meals_(\d{4}-\d{2}-\d{2})$/.exec(localStorage.key(i) || '');
+    if (m) days.push(m[1]);
   }
-  $('histRows').innerHTML = rows;
-  $('histAvg').textContent = cnt ? `Ø ${Math.round(sumK / cnt)} kcal · ${Math.round(sumP / cnt)} g P` : '';
+  Object.keys(stepsLog).forEach(d => { if (Number(stepsLog[d]) > 0 && !days.includes(d)) days.push(d); });
+  if (!days.includes(today)) days.push(today);
+  days.sort().reverse();
 
-  const pts = Object.keys(weights).sort().slice(-30).map(d => ({ d, v: weights[d] }));
+  const line = (label, cur, tgt, unit, color) => `<div class="dr-line"><span>${label}</span><div class="bar"><i style="width:${tgt > 0 ? Math.min(100, cur / tgt * 100) : 0}%;background:${color};"></i></div><b>${Math.round(cur)} / ${tgt} ${unit}</b></div>`;
+  let rows = '', sumK = 0, sumP = 0, cnt = 0, sumS = 0, cntS = 0, lastMonth = '';
+  const gapAcc = {}; let gapDays = 0;
+  const yest = new Date(); yest.setDate(yest.getDate() - 1); const yesterdayStr = dstr(yest);
+  days.forEach(ds => {
+    const meals = ds === today ? todayMeals : loadMeals(ds);
+    const st = Number(stepsLog[ds]) || 0;
+    if (!meals.length && !(st > 0)) return;
+    const d = new Date(ds + 'T12:00:00'), t = dayTotals(meals);
+    const T = getTargets(st > 0 ? st : null);
+    if (st > 0) { sumS += st; cntS++; }
+    if (meals.length) { sumK += t.kcal; sumP += t.prot; cnt++; gapDays++; }
+    if (meals.length) microState(t).forEach(r => { if (!r.nodata) { const a = gapAcc[r.x.k] || (gapAcc[r.x.k] = { x: r.x, sum: 0, n: 0 }); a.sum += Math.min(r.pct, 2); a.n++; } });
+    const month = d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }).toUpperCase();
+    if (month !== lastMonth) { rows += `<div class="month">${month}</div>`; lastMonth = month; }
+    const label = ds === today ? 'HEUTE' : ds === yesterdayStr ? 'GESTERN' : d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }).toUpperCase();
+    const kcalColor = t.kcal > T.cal * 1.05 ? 'var(--red)' : (t.kcal >= T.cal * 0.9 ? 'var(--green)' : 'var(--ink)');
+    rows += `<div class="hist-day"><div class="dayrow" onclick="toggleDayEdit('${ds}')">
+      <div class="dr-head"><b>${label}</b><span>${meals.length ? '' : 'nur Schritte'}</span></div>
+      ${line('Kalorien', t.kcal, T.cal, 'kcal', kcalColor)}
+      ${line('Eiweiß', t.prot, T.prot, 'g', 'var(--green)')}
+      <div class="dr-line"><span>Schritte</span><div class="bar"><i style="width:${Math.min(100, st / 10000 * 100)}%;background:var(--sky);"></i></div><b>${st > 0 ? st.toLocaleString('de-DE') : '–'}</b></div>
+      </div><div class="hist-edit hidden" id="hist-edit-${ds}"></div></div>`;
+  });
+  $('histRows').innerHTML = rows || '<div class="note" style="text-align:center;padding:20px 0;">Noch keine Einträge.</div>';
+  $('histSummary').innerHTML = `
+    <div class="stat"><span class="eyebrow">TAGE ERFASST</span><b>${cnt}</b></div>
+    <div class="stat"><span class="eyebrow">Ø KALORIEN</span><b>${cnt ? Math.round(sumK / cnt) + ' kcal' : '–'}</b></div>
+    <div class="stat"><span class="eyebrow">Ø EIWEISS</span><b>${cnt ? Math.round(sumP / cnt) + ' g' : '–'}</b></div>
+    <div class="stat"><span class="eyebrow">Ø SCHRITTE</span><b>${cntS ? Math.round(sumS / cntS).toLocaleString('de-DE') : '–'}</b></div>`;
+
+  const pts = Object.keys(weights).sort().map(d => ({ d, v: weights[d] }));
   if (pts.length < 2) {
     $('weightChart').innerHTML = `<div class="note" style="text-align:center;padding:20px 0;">${pts.length ? `Aktuell ${pts[0].v} kg. ` : ''}Ein Verlauf erscheint ab 2 Tagen.</div>`;
   } else {
@@ -1997,9 +2029,9 @@ function renderHistory() {
     const W = 300, H = 90, P = 8;
     const X = i => P + i * (W - 2 * P) / (pts.length - 1), Y = v => H - P - (v - mn) / (mx - mn) * (H - 2 * P);
     const line = pts.map((p, i) => `${X(i).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ');
-    const dots = pts.map((p, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="3" fill="#a3e635" stroke="#09090b"/>`).join('');
+    const dots = pts.map((p, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(p.v).toFixed(1)}" r="3" style="fill:var(--green);stroke:var(--card);stroke-width:1.5"/>`).join('');
     const first = pts[0], last = pts[pts.length - 1], diff = last.v - first.v;
-    $('weightChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;"><polyline points="${line}" fill="none" stroke="#09090b" stroke-width="1.5"/>${dots}</svg>
+    $('weightChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;"><polyline points="${line}" fill="none" style="stroke:var(--ink)" stroke-width="2" stroke-linejoin="round"/>${dots}</svg>
       <div class="row mono" style="font-size:11px;color:var(--muted);"><span>${first.v} kg</span><span>${diff > 0 ? '+' : ''}${diff.toFixed(1)} kg</span><span>${last.v} kg</span></div>`;
   }
 
@@ -2211,14 +2243,15 @@ function showShoppingList() {
 
 /* ================= Theme ================= */
 function applyTheme() {
-  const mode = jget('essenlog_theme', 'auto');
+  const mode = jget('essenlog_theme', 'light');
+  document.querySelectorAll('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
   const dark = mode === 'dark' || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = dark ? '#0a0a0a' : '#ffffff';
 }
 function changeTheme(mode) { jset('essenlog_theme', mode); applyTheme(); }
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (jget('essenlog_theme', 'auto') === 'auto') applyTheme(); });
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (jget('essenlog_theme', 'light') === 'auto') applyTheme(); });
 
 /* ================= Backup / PDF ================= */
 const bkKeys = () => { const o = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith('essenlog_')) o.push(k); } return o; };
@@ -2344,7 +2377,6 @@ function switchTab(tab) {
 
 function init() {
   applyTheme();
-  if ($('pTheme')) $('pTheme').value = jget('essenlog_theme', 'auto');
   $('pWeight').value = profile.weight || '';
   $('pFat').value = profile.fat || '';
   $('pHeight').value = profile.height || '';
@@ -2356,6 +2388,7 @@ function init() {
   if ($('pTargetWeight')) $('pTargetWeight').value = profile.targetWeight || '';
   if ($('pProtPerKg')) $('pProtPerKg').value = profile.protPerKg || '';
   $('stepInput').value = steps.date === today ? (steps.count || '') : '';
+  if (profile.calOv || profile.protOv || profile.protPerKg) $('ovDetails').open = true;
   updateDietUI();
   renderRecipes();
   refresh();
