@@ -17,7 +17,7 @@
 <style>
   :root{
     --bg:#fff; --ink:#09090b; --muted:#52525b; --line:#d4d4d8; --track:#e4e4e7;
-    --lime:#a3e635; --sky:#38bdf8; --pink:#ec4899; --red:#dc2626; --lime-tint:#f7fee7;
+    --lime:#a3e635; --sky:#38bdf8; --pink:#ec4899; --red:#dc2626; --lime-tint:#f7fee7; --amber:#f59e0b; --violet:#8b5cf6; --green:#65a30d;
     --font-d:'Oswald',sans-serif; --font-m:'JetBrains Mono',monospace; --font-b:'Inter',sans-serif;
   }
   *{box-sizing:border-box;}
@@ -142,6 +142,33 @@
   .recipe-card .actions { display:flex; gap:6px; margin-top:8px; }
   .recipe-card .actions button { flex:1; height:32px; font-size:11px; padding:0 6px; }
 
+  .hero-num{font-family:var(--font-d);font-size:60px;font-weight:600;line-height:1;margin:2px 0 6px;}
+  .bar.big,.bar.big i{height:16px;}
+  .ring-wrap{display:flex;align-items:center;gap:18px;}
+  .ring{position:relative;width:130px;height:130px;flex:none;}
+  .ring svg{transform:rotate(-90deg);display:block;}
+  .ring .rc{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .mini-row{display:flex;gap:6px;}
+  .mini{flex:1;border:1px solid var(--line);padding:5px 7px;}
+  .mini .eyebrow{font-size:9px;letter-spacing:.1em;}
+  .mini b{display:block;font-family:var(--font-d);font-size:15px;font-weight:600;}
+  .split{display:flex;height:12px;background:var(--track);overflow:hidden;}
+  .mealcard{border:1px solid var(--line);border-left:5px solid var(--mc);background:var(--mt);margin-bottom:10px;padding-bottom:1px;}
+  .mealcard .mh{display:flex;justify-content:space-between;align-items:baseline;padding:8px 12px;font-family:var(--font-m);font-size:11px;letter-spacing:.12em;font-weight:600;}
+  .mealcard .mh b{font-family:var(--font-d);font-size:15px;letter-spacing:.04em;color:var(--mc);}
+  .mealcard .meal-item{margin:0 8px 8px;background:#fff;}
+  .mc-breakfast{--mc:#d97706;--mt:rgba(245,158,11,.12);}
+  .mc-lunch{--mc:#0284c7;--mt:rgba(56,189,248,.12);}
+  .mc-dinner{--mc:#7c3aed;--mt:rgba(139,92,246,.10);}
+  .mc-snack{--mc:#db2777;--mt:rgba(236,72,153,.09);}
+  [data-theme="dark"] .mc-breakfast{--mc:#fbbf24;} [data-theme="dark"] .mc-lunch{--mc:#38bdf8;} [data-theme="dark"] .mc-dinner{--mc:#a78bfa;} [data-theme="dark"] .mc-snack{--mc:#f472b6;}
+  #tab-history .frame{border-top:3px solid var(--sky);}
+  #tab-recipes .frame{border-top:3px solid var(--lime);}
+  #tab-profile .frame{border-top:3px solid var(--pink);}
+  .recipe-card{border-left:5px solid var(--sky);}
+  .nwarn{background:var(--pink);color:#fff;font-size:12px;padding:8px 10px;margin:8px 0;line-height:1.4;}
+  .nok{background:var(--lime);color:#000;font-size:12px;padding:6px 10px;margin:8px 0;}
+
   [data-theme="dark"] { --bg:#0a0a0a; --ink:#fafafa; --muted:#a1a1aa; --line:#3f3f46; --track:#27272a; --lime-tint:#1a2e05; }
   [data-theme="dark"] body { background:var(--bg); color:var(--ink); }
   [data-theme="dark"] .frame,
@@ -190,29 +217,38 @@
     </div>
 
     <div class="frame col">
-      <div class="row"><span class="eyebrow">KALORIEN</span><span class="mono" style="font-size:12px;color:var(--muted);" id="calRemaining">0 offen</span></div>
-      <div class="display" style="font-size:34px;font-weight:600;margin:6px 0 8px;" id="calCurrent">0 <span class="mono" style="font-size:13px;color:var(--muted);">/ 0 KCAL</span></div>
-      <div class="bar"><i style="width:0%;background:var(--ink);" id="calBar"></i></div>
+      <div class="row"><span class="eyebrow">KALORIEN</span><span class="mono" style="font-size:13px;font-weight:600;" id="calRemaining">0 offen</span></div>
+      <div class="hero-num" id="calCurrent">0 <span class="mono" style="font-size:14px;color:var(--muted);">/ 0 KCAL</span></div>
+      <div class="bar big"><i style="width:0%;background:var(--ink);" id="calBar"></i></div>
     </div>
 
-    <div class="frame col">
-      <div class="row"><span class="eyebrow">EIWEISS</span><span class="mono" style="font-size:12px;color:var(--muted);" id="protRemaining">0 g offen</span></div>
-      <div class="display" style="font-size:34px;font-weight:600;margin:6px 0 8px;" id="protCurrent">0 <span class="mono" style="font-size:13px;color:var(--muted);">/ 0 G</span></div>
-      <div class="bar"><i style="width:0%;background:var(--lime);" id="protBar"></i></div>
+    <div class="frame">
+      <div class="ring-wrap">
+        <div class="ring">
+          <svg width="130" height="130" viewBox="0 0 130 130"><circle cx="65" cy="65" r="54" fill="none" style="stroke:var(--track);" stroke-width="14"/><circle id="protRing" cx="65" cy="65" r="54" fill="none" style="stroke:var(--green);" stroke-width="14" stroke-dasharray="0 339.29"/></svg>
+          <div class="rc"><div class="display" style="font-size:34px;font-weight:600;line-height:1;" id="protCurrent">0</div><div class="mono" style="font-size:10px;color:var(--muted);letter-spacing:.1em;">G EIWEISS</div></div>
+        </div>
+        <div class="col" style="gap:4px;">
+          <span class="eyebrow">EIWEISS</span>
+          <div class="display" style="font-size:26px;font-weight:600;" id="protTarget">/ 0 g</div>
+          <div class="mono" style="font-size:12px;color:var(--muted);" id="protRemaining">0 g offen</div>
+        </div>
+      </div>
     </div>
 
     <div class="frame col">
       <span class="eyebrow">MAKROS</span>
-      <div class="macro-row">
-        <div class="macro-cell"><span class="eyebrow" style="letter-spacing:.1em;">FETT</span><b id="mFat">0 g</b></div>
-        <div class="macro-cell"><span class="eyebrow" style="letter-spacing:.1em;">KH</span><b id="mCarb">0 g</b></div>
-        <div class="macro-cell"><span class="eyebrow" style="letter-spacing:.1em;">BALLAST.</span><b id="mFib">0 g</b></div>
+      <div class="split"><i id="msF" style="background:var(--pink);width:0;"></i><i id="msC" style="background:var(--sky);width:0;"></i><i id="msP" style="background:var(--green);width:0;"></i></div>
+      <div class="mono" style="font-size:10px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;"><span><b style="color:var(--pink);">■</b> Fett</span><span><b style="color:var(--sky);">■</b> KH</span><span><b style="color:var(--green);">■</b> Eiweiß</span><span>(Anteil an kcal)</span></div>
+      <div class="mini-row">
+        <div class="mini"><span class="eyebrow">FETT</span><b id="mFat">0 g</b></div>
+        <div class="mini"><span class="eyebrow">KH</span><b id="mCarb">0 g</b></div>
+        <div class="mini"><span class="eyebrow">BALLAST.</span><b id="mFib">0 g</b></div>
       </div>
-      <div class="macro-row">
-        <div class="macro-cell"><span class="eyebrow" style="letter-spacing:.1em;">ZUCKER</span><b id="mSugar" style="font-size:17px;">0 g</b></div>
-        <div class="macro-cell"><span class="eyebrow" style="letter-spacing:.1em;">GES. FETT</span><b id="mSat" style="font-size:17px;">0 g</b></div>
-        <div class="macro-cell"><span class="eyebrow" style="letter-spacing:.1em;">SALZ</span><b id="mSalt" style="font-size:17px;">0 g</b></div>
-        <div class="macro-cell"><span class="eyebrow" style="letter-spacing:.1em;">BE</span><b id="mBE" style="font-size:17px;">0</b></div>
+      <div class="mini-row">
+        <div class="mini"><span class="eyebrow">ZUCKER</span><b id="mSugar">0 g</b></div>
+        <div class="mini"><span class="eyebrow">GES. FETT</span><b id="mSat">0 g</b></div>
+        <div class="mini"><span class="eyebrow">SALZ</span><b id="mSalt">0 g</b></div>
       </div>
     </div>
 
@@ -440,8 +476,17 @@
         </select>
       </div>
       <div class="chips" id="portionChips"></div>
-      <div class="input-group"><label>MENGE (GRAMM)</label><input type="text" inputmode="decimal" id="amtInput" oninput="chipN=0;updatePreview()"></div>
-      <div class="mono" style="font-size:13px;margin-bottom:16px;" id="amtPreview"></div>
+      <div style="display:flex;gap:10px;">
+        <div class="input-group" style="flex:1;"><label>ANZAHL STÜCK</label><input type="text" inputmode="decimal" id="pcCount" placeholder="z.B. 5" oninput="pieceCountChanged()"></div>
+        <div class="input-group" style="flex:1;"><label>GEWICHT / STÜCK (G)</label><input type="text" inputmode="decimal" id="pcWeight" placeholder="z.B. 50" oninput="pieceWeightChanged()"></div>
+      </div>
+      <div class="input-group"><label>MENGE (GRAMM)</label><input type="text" inputmode="decimal" id="amtInput" oninput="amountTyped()"></div>
+      <div class="mono" style="font-size:13px;margin-bottom:12px;" id="amtPreview"></div>
+      <details id="nutriDetails" style="margin-bottom:12px;background:var(--track);padding:8px;">
+        <summary class="eyebrow" style="cursor:pointer;font-weight:600;color:var(--ink);">NÄHRWERTE PRÜFEN</summary>
+        <div id="nutriWarn"></div>
+        <div id="nutriRows"></div>
+      </details>
       <button class="btn btn-outline btn-sm hidden" style="width:100%;margin-bottom:12px;height:auto;padding:10px;line-height:1.3;" id="microBtn" onclick="startPickMicros()">VITAMINE &amp; MINERALSTOFFE VON ÄHNLICHEM BLS-LEBENSMITTEL ÜBERNEHMEN</button>
       <button class="btn btn-outline btn-sm hidden" style="width:100%;margin-bottom:12px;height:auto;padding:10px;" id="editFoodBtn" onclick="editFood()">PRODUKTWERTE BEARBEITEN</button>
       <button class="btn" style="width:100%;" id="amtOk" onclick="confirmAmount()">HINZUFÜGEN</button>
@@ -462,6 +507,7 @@
       </div>
       <div style="display:flex;gap:10px;margin-bottom:15px;">
         <div class="input-group" style="flex:1;margin-bottom:0;"><label>BALLASTSTOFFE / 100G</label><input type="number" step="0.01" id="m_fib" placeholder="z.B. 10.0"></div>
+        <div class="input-group" style="flex:1;margin-bottom:0;"><label>GEWICHT / STÜCK (G)</label><input type="number" step="0.1" id="m_piece" placeholder="z.B. 50"></div>
       </div>
       <div style="display:flex;gap:10px;margin-bottom:15px;">
         <div class="input-group" style="flex:1;margin-bottom:0;"><label>NATRIUM (mg)</label><input type="number" step="1" id="m_natrium" oninput="syncNaCl('na')"></div>
@@ -645,7 +691,7 @@ const auth = getAuth(app);
 const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 
 const P = 'essenlog_';
-const DATA_KEYS = ['custom_foods', 'recipes', 'profile', 'weights', 'stepslog'];
+const DATA_KEYS = ['custom_foods', 'recipes', 'profile', 'weights', 'stepslog', 'pieces'];
 const MEAL_RE = /^essenlog_meals_(\d{4}-\d{2}-\d{2})$/;
 const $m = id => document.getElementById(id);
 const escM = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -921,7 +967,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp
 const dstr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const num = s => { const v = parseFloat(String(s).replace(',', '.')); return isNaN(v) ? null : v; };
 function jget(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
-const SYNC_KEY_RE = /^essenlog_(meals_\d{4}-\d{2}-\d{2}|custom_foods|recipes|profile|weights|stepslog)$/;
+const SYNC_KEY_RE = /^essenlog_(meals_\d{4}-\d{2}-\d{2}|custom_foods|recipes|profile|weights|stepslog|pieces)$/;
 function markDirty(key) {
   if (!SYNC_KEY_RE.test(key)) return;
   try {
@@ -1061,6 +1107,7 @@ let lastGrams = jget('essenlog_lastgrams', {});
 let recentIds = jget('essenlog_recent', []);
 let barcodeHistory = jget('essenlog_barcode_history', []);
 let recipes = jget('essenlog_recipes', []);
+let pieces = jget('essenlog_pieces', {});
 let dietFilters = jget('essenlog_diet', { vegan: false, vegetarian: false, glutenfree: false, lactosefree: false, nutfree: false });
 let blsSet = new Set(), blsData = [], foodMap = new Map(), extraFoods = [], extraByCode = new Map();
 let histDays = 7;
@@ -1191,19 +1238,28 @@ function calcAll() {
 
   const t = dayTotals(todayMeals);
   const sub = txt => `<span class="mono" style="font-size:13px;color:var(--muted);">${txt}</span>`;
+  const calOver = t.kcal - T.cal;
   $('calCurrent').innerHTML = Math.round(t.kcal) + ' ' + sub(`/ ${T.cal} KCAL`);
-  $('calRemaining').textContent = `${Math.max(0, Math.round(T.cal - t.kcal))} offen`;
+  $('calRemaining').textContent = calOver > 0 ? `${Math.round(calOver)} drüber` : `${Math.round(T.cal - t.kcal)} offen`;
+  $('calRemaining').style.color = calOver > T.cal * 0.05 ? 'var(--red)' : 'var(--ink)';
   $('calBar').style.width = (T.cal > 0 ? Math.min(100, t.kcal / T.cal * 100) : 0) + '%';
-  $('protCurrent').innerHTML = Math.round(t.prot) + ' ' + sub(`/ ${T.prot} G`);
-  $('protRemaining').textContent = `${Math.max(0, Math.round(T.prot - t.prot))} g offen`;
-  $('protBar').style.width = (T.prot > 0 ? Math.min(100, t.prot / T.prot * 100) : 0) + '%';
+  $('calBar').style.background = calOver > T.cal * 0.05 ? 'var(--red)' : 'var(--ink)';
+  const ringPct = T.prot > 0 ? Math.min(100, t.prot / T.prot * 100) : 0;
+  $('protCurrent').textContent = Math.round(t.prot);
+  $('protTarget').textContent = `/ ${T.prot} g`;
+  $('protRemaining').textContent = t.prot >= T.prot ? 'Ziel erreicht ✓' : `${Math.round(T.prot - t.prot)} g offen`;
+  $('protRing').setAttribute('stroke-dasharray', `${(ringPct * 339.29 / 100).toFixed(1)} 339.29`);
   $('mFat').textContent = Math.round(t.fat) + ' g';
   $('mCarb').textContent = Math.round(t.carb) + ' g';
   $('mFib').textContent = Math.round(t.fib) + ' g';
   $('mSugar').textContent = (Math.round(t.sugar * 10) / 10) + ' g';
   $('mSat').textContent = (Math.round(t.satfat * 10) / 10) + ' g';
   $('mSalt').textContent = (Math.round(t.salt * 10) / 10) + ' g';
-  $('mBE').textContent = Math.round(t.carb / 12 * 10) / 10;
+  {
+    const kT = t.kcal || 1, sf = t.fat * 9 / kT * 100, sc = t.carb * 4 / kT * 100, sp = t.prot * 4 / kT * 100;
+    const sc2 = 100 / Math.max(100, sf + sc + sp);
+    $('msF').style.width = (t.kcal ? sf * sc2 : 0) + '%'; $('msC').style.width = (t.kcal ? sc * sc2 : 0) + '%'; $('msP').style.width = (t.kcal ? sp * sc2 : 0) + '%';
+  }
 
   const setGoal = (barId, valId, cur, max, unit, isMax) => {
     const pct = max > 0 ? Math.min(100, cur / max * 100) : 0;
@@ -1257,19 +1313,22 @@ function renderMeals() {
   Object.entries(MEAL_LABELS).forEach(([key, label]) => {
     const items = todayMeals.map((m, i) => ({ m, i })).filter(({ m }) => (m.meal || 'snack') === key);
     if (!items.length) return;
-    html += `<div class="list-title">${label}</div>`;
+    let sk = 0, sp = 0;
+    items.forEach(({ m }) => { const f = m.grams / 100; sk += (m.n.kcal || 0) * f; sp += (m.n.prot || 0) * f; });
+    html += `<div class="mealcard mc-${key}"><div class="mh"><span>${label}</span><b>${Math.round(sk)} kcal · ${Math.round(sp)} g P</b></div>`;
     items.forEach(({ m, i }) => {
       const f = m.grams / 100;
       const time = m.ts ? new Date(m.ts).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
       const portionTxt = m.portion ? ` (${m.portion})` : '';
       html += `<div class="meal-item">
         <div class="txt" data-edit="${i}">
-          <div class="name"><span class="meal-cat">${MEAL_LABELS[m.meal || 'snack'] || ''}</span>${esc(m.name)}</div>
+          <div class="name">${esc(m.name)}</div>
           <div class="macros">${fmt(m.grams)} g${portionTxt} · ${Math.round((m.n.kcal || 0) * f)} kcal · ${((m.n.prot || 0) * f).toFixed(1)} g P${time ? ' · ' + time : ''}</div>
         </div>
         <button data-del="${i}" aria-label="Eintrag löschen">&times;</button>
       </div>`;
     });
+    html += '</div>';
   });
   list.innerHTML = html;
 }
@@ -1643,10 +1702,20 @@ function openAmount(food, editIndex = null, callback = null) {
     chipN = (chipLast === i) ? chipN + 1 : 1; chipLast = i;
     sheetCtx.chipText = ps[i][0];
     $('amtInput').value = ps[i][1] * chipN;
+    syncPieceCount();
     updatePreview(chipN > 1 ? `${chipN} × ${ps[i][0]}` : '');
   };
   $('amtInput').value = g;
+  const pe = pieces[food.id] || {};
+  const pw = pe.g || food.pieceG || '';
+  $('pcWeight').value = pw;
+  $('pcCount').value = '';
+  if (pw) {
+    if (editIndex === null && pe.n > 0) { $('pcCount').value = pe.n; $('amtInput').value = Math.round(pe.n * pw * 10) / 10; }
+    else $('pcCount').value = Math.round(g / pw * 10) / 10;
+  }
   updatePreview();
+  $('nutriDetails').open = !!(food.barcode || food.manual) || renderNutriPreview() > 0;
   $('sheet').classList.remove('hidden');
   setTimeout(() => { $('amtInput').focus(); $('amtInput').select(); }, 50);
 }
@@ -1670,6 +1739,58 @@ function updatePreview(prefix) {
   if (!(g > 0)) { $('amtPreview').textContent = ''; return; }
   const unit = DRINK_KEYWORDS.test(f.name) ? 'ml' : 'g';
   $('amtPreview').textContent = (prefix ? prefix + ' = ' : '') + `${fmt(g)} ${unit} → ${Math.round((f.kcal || 0) * g / 100)} kcal · ${((f.prot || 0) * g / 100).toFixed(1)} g Eiweiß`;
+  renderNutriPreview();
+}
+function syncPieceCount() {
+  const g = num($('amtInput').value), w = num($('pcWeight').value);
+  if (g > 0 && w > 0) $('pcCount').value = Math.round(g / w * 10) / 10;
+}
+function amountTyped() { chipN = 0; syncPieceCount(); updatePreview(); }
+function pieceCountChanged() {
+  const n = num($('pcCount').value), w = num($('pcWeight').value);
+  if (n > 0 && w > 0) { $('amtInput').value = Math.round(n * w * 10) / 10; chipN = 0; }
+  updatePreview();
+}
+function pieceWeightChanged() {
+  const n = num($('pcCount').value), w = num($('pcWeight').value);
+  if (n > 0 && w > 0) $('amtInput').value = Math.round(n * w * 10) / 10;
+  else syncPieceCount();
+  updatePreview();
+}
+function foodSalt(f) { return f.salt != null ? f.salt : (f.natrium != null ? f.natrium * 2.54 / 1000 : null); }
+const PREV_ROWS = [['kcal', 'Kalorien', 'kcal', 0], ['prot', 'Eiweiß', 'g', 0], ['fat', 'Fett', 'g', 0], ['satfat', 'davon ges. Fett', 'g', 1], ['carb', 'Kohlenhydrate', 'g', 0], ['sugar', 'davon Zucker', 'g', 1], ['fib', 'Ballaststoffe', 'g', 0], ['salt', 'Salz', 'g', 0]];
+function nutriWarnings(f) {
+  const w = [], P = f.prot, F = f.fat, C = f.carb;
+  const miss = [['kcal', 'Kalorien'], ['prot', 'Eiweiß'], ['fat', 'Fett'], ['carb', 'Kohlenhydrate']].filter(([k]) => f[k] == null).map(x => x[1]);
+  if (miss.length) w.push('Fehlt: ' + miss.join(', ') + '. Bitte über „Produktwerte bearbeiten“ ergänzen.');
+  if ((P || 0) + (F || 0) + (C || 0) > 100.5) w.push('Eiweiß + Fett + KH ergeben mehr als 100 g pro 100 g – das kann nicht stimmen.');
+  if (f.kcal > 905) w.push('Mehr als 900 kcal pro 100 g ist unrealistisch.');
+  if (F != null && C != null && P != null && f.kcal > 0) {
+    const calc = P * 4 + F * 9 + C * 4 + (f.alcohol || 0) * 7;
+    if (Math.abs(calc - f.kcal) > 40 && Math.abs(calc - f.kcal) / f.kcal > 0.25) w.push(`Kalorien (${Math.round(f.kcal)}) passen nicht zu den Makros (≈ ${Math.round(calc)} kcal).`);
+  }
+  if (C != null && f.sugar != null && f.sugar > C + 0.5) w.push('Zucker ist höher als die Kohlenhydrate.');
+  if (F != null && f.satfat != null && f.satfat > F + 0.5) w.push('Gesättigte Fette sind höher als das Gesamtfett.');
+  return w;
+}
+function renderNutriPreview() {
+  if (!sheetCtx) return 0;
+  const f = sheetCtx.food, g = num($('amtInput').value) || 100, k = g / 100;
+  const unitL = DRINK_KEYWORDS.test(f.name) ? 'ml' : 'g';
+  const val = key => key === 'salt' ? foodSalt(f) : f[key];
+  const cell = (v, u) => v == null ? '<span style="color:var(--pink);">fehlt</span>' : `${fmt(v)} ${u}`;
+  const row = (label, v, u, dim) => `<div class="row mono" style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--line);${dim ? 'color:var(--muted);padding-left:10px;' : ''}"><span>${label}</span><span>${cell(v, u)} <span style="color:var(--muted);">· ${v == null ? '–' : fmt(v * k) + ' ' + u}</span></span></div>`;
+  let rows = `<div class="row mono" style="font-size:10px;color:var(--muted);padding:4px 0;"><span>WERT</span><span>PRO 100 ${unitL.toUpperCase()} · FÜR ${fmt(g)} ${unitL.toUpperCase()}</span></div>`;
+  PREV_ROWS.forEach(([key, label, u, dim]) => { rows += row(label, val(key), u, dim); });
+  const have = NUT.filter(x => f[x.k] != null);
+  if (have.length) {
+    rows += `<div class="eyebrow" style="margin-top:8px;">VITAMINE &amp; MINERALSTOFFE (${have.length} VON ${NUT.length})</div>`;
+    have.forEach(x => { rows += row(x.label, f[x.k], x.unit, 0); });
+  } else rows += '<div class="note" style="margin-top:8px;">Keine Vitamine/Mineralstoffe erfasst.</div>';
+  $('nutriRows').innerHTML = rows;
+  const w = nutriWarnings(f);
+  $('nutriWarn').innerHTML = w.length ? w.map(t => `<div class="nwarn">⚠ ${esc(t)}</div>`).join('') : '<div class="nok">✓ Werte wirken plausibel</div>';
+  return w.length;
 }
 function closeSheet() { $('sheet').classList.add('hidden'); sheetCtx = null; }
 
@@ -1678,7 +1799,13 @@ function confirmAmount() {
   if (!(g > 0) || g > 5000) { showDialog('Hinweis', 'Bitte eine Menge zwischen 1 und 5000 eingeben.', [{ text: 'OK', primary: true }]); return; }
   const { food, editIndex, callback } = sheetCtx;
   const mealCat = ($('mealCategory') && $('mealCategory').value) || guessMeal();
-  const portionLabel = (chipLast !== null && chipN > 0 && sheetCtx.chipText) ? `${chipN > 1 ? chipN + ' × ' : ''}${sheetCtx.chipText}` : null;
+  let portionLabel = (chipLast !== null && chipN > 0 && sheetCtx.chipText) ? `${chipN > 1 ? chipN + ' × ' : ''}${sheetCtx.chipText}` : null;
+  const pw = num($('pcWeight').value), pn = num($('pcCount').value);
+  if (pw > 0) {
+    pieces[food.id] = { g: pw, n: pn > 0 ? pn : null };
+    jset('essenlog_pieces', pieces);
+    if (!portionLabel && pn > 0) portionLabel = `${fmt(pn)} Stück`;
+  }
 
   if (callback) { callback(food, g); closeSheet(); return; }
 
@@ -1717,6 +1844,7 @@ function openManual(barcode) {
   $('sheetTitle').textContent = 'EIGENES PRODUKT';
   MACRO_KEYS.forEach(k => { const el = $('m_' + k); if (el) el.value = ''; });
   NUT.forEach(x => { const el = $('m_' + x.k.replace(/ä/g, 'a')); if (el) el.value = ''; });
+  $('m_piece').value = '';
   $('amountForm').classList.add('hidden'); $('manualForm').classList.remove('hidden');
   sheetCtx = null;
   $('sheet').classList.remove('hidden');
@@ -1732,6 +1860,7 @@ function editFood() {
   $('mName').value = food.name || '';
   MACRO_KEYS.forEach(k => { const el = $('m_' + k); if (el) el.value = food[k] != null ? food[k] : ''; });
   NUT.forEach(x => { const el = $('m_' + x.k.replace(/ä/g, 'a')); if (el) el.value = food[x.k] != null ? food[x.k] : ''; });
+  $('m_piece').value = food.pieceG != null ? food.pieceG : '';
 }
 function saveManual() {
   const name = $('mName').value.trim(), kcal = num($('m_kcal').value), prot = num($('m_prot').value);
@@ -1740,6 +1869,7 @@ function saveManual() {
   editingFood = null;
   MACRO_KEYS.forEach(k => { const el = $('m_' + k); if (el) food[k] = num(el.value); });
   NUT.forEach(x => { const el = $('m_' + x.k.replace(/ä/g, 'a')); if (el) food[x.k] = num(el.value); });
+  food.pieceG = num($('m_piece').value);
   customFoods = customFoods.filter(f => f.id !== food.id).concat(food);
   jset('essenlog_custom_foods', customFoods); buildIndex();
   closeSheet(); openAmount(food);
@@ -1850,7 +1980,7 @@ function renderHistory() {
     }
     const label = i === 0 ? 'HEUTE' : d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }).toUpperCase();
     rows += `<div class="hist-row" onclick="toggleDayEdit('${ds}')"><div class="top"><span>${label}</span><span>${Math.round(t.kcal)} / ${T.cal} kcal · ${Math.round(t.prot)} / ${T.prot} g P</span></div>
-      <div class="bar" style="height:6px;"><i style="height:6px;width:${T.cal > 0 ? Math.min(100, t.kcal / T.cal * 100) : 0}%;background:var(--ink);"></i></div>
+      <div class="bar" style="height:6px;"><i style="height:6px;width:${T.cal > 0 ? Math.min(100, t.kcal / T.cal * 100) : 0}%;background:${t.kcal > T.cal * 1.05 ? 'var(--red)' : (t.kcal >= T.cal * 0.9 ? 'var(--green)' : 'var(--ink)')};"></i></div>
       <div class="bar" style="height:6px;"><i style="height:6px;width:${T.prot > 0 ? Math.min(100, t.prot / T.prot * 100) : 0}%;background:var(--lime);"></i></div>
       </div>
       <div class="hist-edit hidden" id="hist-edit-${ds}"></div>`;
@@ -2106,7 +2236,7 @@ function renderBackupInfo() {
   el.textContent = (days.length ? `${days.length} Tage mit Einträgen (${bkFmtD(days[0])} bis ${bkFmtD(days[days.length - 1])}), ${meals} Mahlzeiten` : 'Noch keine Mahlzeiten')
     + `, ${prod} eigene Produkte, ${rec} Rezepte. Speicher: ca. ${Math.max(1, Math.round(bytes / 1024))} KB von ca. 5000 KB.`;
 }
-const BK_MAP = { customFoods: 'essenlog_custom_foods', recipes: 'essenlog_recipes', profile: 'essenlog_profile', diet: 'essenlog_diet',
+const BK_MAP = { customFoods: 'essenlog_custom_foods', recipes: 'essenlog_recipes', pieces: 'essenlog_pieces', profile: 'essenlog_profile', diet: 'essenlog_diet',
   weights: 'essenlog_weights', stepsLog: 'essenlog_stepslog', steps: 'essenlog_steps', lastGrams: 'essenlog_lastgrams',
   recent: 'essenlog_recent', barcodeHistory: 'essenlog_barcode_history', theme: 'essenlog_theme' };
 const bkCount = (meals) => { let d = 0, m = 0; Object.values(meals).forEach(a => { if (Array.isArray(a) && a.length) { d++; m += a.length; } }); return { d, m }; };
