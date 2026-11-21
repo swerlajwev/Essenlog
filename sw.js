@@ -1,4 +1,4 @@
-const CACHE = 'essenlog-v9';
+const CACHE = 'essenlog-v10';
 const ASSETS = [
   './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-48.png', './favicon.ico',
   './bls.json',
