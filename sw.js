@@ -1,7 +1,7 @@
-const CACHE = 'essenlog-v14';
+const CACHE = 'essenlog-v15';
 const ASSETS = [
   './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-48.png', './favicon.ico',
-  './bls.json',
+  './bls.json', './html5-qrcode.min.js',
   './supermarkt.json'
 ];
 

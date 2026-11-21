@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="Essenlog">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="./html5-qrcode.min.js" onerror="var s=document.createElement('script');s.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';document.head.appendChild(s)"></script>
 <style>
   :root{
     --bg:#fff; --ink:#09090b; --muted:#52525b; --line:#d4d4d8; --track:#e4e4e7;
@@ -1224,7 +1224,10 @@ function getTargets(stepCount) {
   const fatT = Math.round(cal * 0.30 / 9), carbT = Math.max(0, Math.round((cal - prot * 4 - fatT * 9) / 4));
   return { factor, bmr, tdee, cal, prot, fiber, sugarMax, satMax, saltMax, fatT, carbT };
 }
-const todaySteps = () => (steps.date === today && Number(steps.count) > 0) ? Number(steps.count) : null;
+const todaySteps = () => {
+  const s = (steps.date === today && Number(steps.count) > 0) ? Number(steps.count) : (Number(stepsLog[today]) || 0);
+  return s > 0 ? s : null;
+};
 
 function dayTotals(meals) {
   const t = { micro: {} };
@@ -1465,7 +1468,7 @@ function shortDate(ds) { return ds.slice(8) + '.' + ds.slice(5, 7) + '.'; }
 function openSteps(ds) {
   stepsDate = (typeof ds === 'string' && ds) ? ds : today;
   const isToday = stepsDate === today;
-  const cur = isToday ? (steps.date === today ? Number(steps.count) || 0 : 0) : (Number(stepsLog[stepsDate]) || 0);
+  const cur = isToday ? (todaySteps() || 0) : (Number(stepsLog[stepsDate]) || 0);
   $('stepsTitle').textContent = isToday ? 'Schritte heute' : 'Schritte am ' + shortDate(stepsDate);
   $('stepsInput').value = cur > 0 ? cur : '';
   $('stepsNote').textContent = 'Mehr Schritte heißt mehr Kalorienverbrauch: Dein Kalorienziel steigt mit deinen Schritten' + (isToday ? ` (aktuell Faktor ${getTargets(todaySteps()).factor.toFixed(2)}).` : '.') + ' Ohne Eingabe rechnet die App mit einem durchschnittlichen Tag. Leer lassen = Schritte löschen.';
@@ -1488,13 +1491,6 @@ function saveStepsFor(ds, val) {
   jset('essenlog_stepslog', stepsLog);
   calcAll();
   if (!$('tab-history').classList.contains('hidden')) renderHistory();
-}
-function saveSteps(val) {
-  steps = { date: today, count: Number(val) || 0 };
-  jset('essenlog_steps', steps);
-  if (steps.count > 0) stepsLog[today] = steps.count; else delete stepsLog[today];
-  jset('essenlog_stepslog', stepsLog);
-  calcAll();
 }
 
 /* ================= Such-Modal ================= */
@@ -1544,7 +1540,7 @@ function damerauLevenshtein(a, b) {
   return matrix[b.length][a.length];
 }
 
-const DRINK_KEYWORDS = /^(vollmilch|milch|buttermilch|kefir|kuhmilch|hafermilch|sojamilch|mandelmilch|haferdrink)(\s|,|\(|$)|saft|limonade|cola|bier|wein|sekt|schorle|smoothie|kaffee|espresso|tee|kakao|getränk|drink|bowle|likör|schnaps|wodka|whisky|energy|sportgetränk|mineralwasser|wasser|eistee|mate|latte|kombucha/i;
+const DRINK_KEYWORDS = /^(vollmilch|milch|buttermilch|kefir|kuhmilch|hafermilch|sojamilch|mandelmilch|haferdrink)(\s|,|\(|$)|(saft|limonade|cola|bier|wein|sekt|schorle|smoothie|kaffee|espresso|tee|kakao|getränk|drink|bowle|likör|schnaps|wodka|whisky|sportgetränk|mineralwasser|wasser|eistee|kombucha)(?![a-zäöüß])|(^|[^a-zäöüß])(mate|latte|energy)(?![a-zäöüß])/i;
 const DRINK_PORTIONS = [['1 Shot (20 ml)', 20], ['330 ml', 330], ['500 ml', 500]];
 
 const DIET_BLOCKLIST = {
@@ -1582,6 +1578,13 @@ function setSearchFilter(f) {
   searchFood($('foodSearch').value);
 }
 
+let _allCache = null;
+const _normCache = new WeakMap();
+function normInfo(item) {
+  let r = _normCache.get(item);
+  if (!r || r.src !== item.name) { const n = normalizeText(item.name); r = { src: item.name, n, parts: n.split(/[^a-z0-9]+/) }; _normCache.set(item, r); }
+  return r;
+}
 function searchFood(query) {
   const box = $('searchResults');
   const rawQuery = query.trim().toLowerCase();
@@ -1601,7 +1604,8 @@ function searchFood(query) {
     return;
   }
 
-  let allData = [...blsData, ...extraFoods, ...customFoods];
+  if (!_allCache || _allCache.b !== blsData || _allCache.e !== extraFoods || _allCache.c !== customFoods) _allCache = { b: blsData, e: extraFoods, c: customFoods, list: [...blsData, ...extraFoods, ...customFoods] };
+  let allData = _allCache.list;
   if (searchFilter === 'drinks') allData = allData.filter(f => DRINK_KEYWORDS.test(f.name));
   else if (searchFilter === 'food') allData = allData.filter(f => !DRINK_KEYWORDS.test(f.name));
   allData = allData.filter(f => passesDiet(f.name));
@@ -1627,13 +1631,13 @@ function searchFood(query) {
 
   allData.forEach(item => {
     if (pickMode && !blsSet.has(item.id) && !customFoods.find(f => f.id === item.id)) return;
-    const itemName = normalizeText(item.name);
+    const nn = normInfo(item), itemName = nn.n;
     let score = 0, matchCount = 0;
     for (let w of normWords) {
       if (itemName.includes(w)) { score += 100; matchCount++; }
       else {
         let bestDist = 999;
-        let parts = itemName.split(/[^a-z0-9]+/);
+        let parts = nn.parts;
         for (let p of parts) { if (!p) continue; let dist = damerauLevenshtein(w, p); if (dist < bestDist) bestDist = dist; }
         let maxDist = w.length > 4 ? 2 : (w.length > 2 ? 1 : 0);
         if (bestDist <= maxDist) { score += 50; matchCount++; }
@@ -1654,7 +1658,7 @@ function searchFood(query) {
       let partial = [];
       allData.forEach(item => {
         if (pickMode && !blsSet.has(item.id) && !customFoods.find(f => f.id === item.id)) return;
-        const itemName = normalizeText(item.name);
+        const nn = normInfo(item), itemName = nn.n;
         let matchCount = 0;
         mainWords.forEach(w => { if (itemName.includes(w)) matchCount++; });
         if (matchCount > 0) partial.push({ item, score: matchCount * 10 });
