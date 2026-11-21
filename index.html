@@ -113,11 +113,13 @@
   #scannerModal{position:fixed;top:0;left:0;right:0;bottom:0;background:#000;z-index:200;display:flex;flex-direction:column;}
   #reader {width:100%; flex:1;}
 
-  #dialogOverlay {position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:99999; display:flex; align-items:center; justify-content:center; padding:20px; touch-action:none;}
-  #dialogBox {background:#fff; border-radius:12px; padding:20px; max-width:340px; width:100%; box-shadow:0 10px 25px rgba(0,0,0,0.3);}
+  #dialogOverlay, #emailOverlay {position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:99999; display:flex; align-items:center; justify-content:center; padding:20px; touch-action:none;}
+  #dialogBox, #emailBox {background:#fff; border-radius:12px; padding:20px; max-width:340px; width:100%; box-shadow:0 10px 25px rgba(0,0,0,0.3);}
   #dialogTitle {margin:0 0 10px 0; font-family:var(--font-d); font-size:22px; color:var(--ink);}
   #dialogMessage {margin:0 0 20px 0; font-size:15px; line-height:1.5; color:var(--ink); white-space:pre-wrap;}
-  .dialog-buttons {display:flex; justify-content:flex-end; gap:10px;}
+  .dialog-buttons {display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px;}
+  #emailBox input{width:100%;padding:10px;border:1px solid var(--line);font-size:16px;border-radius:0;background:#fff;color:var(--ink);}
+  [data-theme="dark"] #emailOverlay #emailBox, [data-theme="dark"] #emailBox input{background:#18181b !important;color:var(--ink);}
   .dialog-buttons button {height:40px; padding:0 20px; font-size:14px; touch-action:manipulation; cursor:pointer;}
 
   #toast {position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:4px;z-index:300;display:flex;gap:12px;align-items:center;max-width:90vw;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.25);}
@@ -358,6 +360,11 @@
         <option value="light">Hell</option>
         <option value="dark">Dunkel</option>
       </select>
+    </div>
+    <div class="frame col">
+      <span class="eyebrow">CLOUD-SYNC</span>
+      <div id="authStatus" class="col"><div class="note">Wird geladen… (Internet nötig)</div></div>
+      <div class="note">Speichert Mahlzeiten, Profil, Rezepte, eigene Produkte und Gewicht in deinem Konto und gleicht Geräte ab.</div>
     </div>
     <div class="frame col">
       <span class="eyebrow">BACKUP</span>
@@ -603,7 +610,284 @@
   </div>
 </div>
 
+<div id="emailOverlay" class="hidden">
+  <div id="emailBox">
+    <h3 style="margin:0 0 12px;font-family:var(--font-d);font-size:22px;">E-MAIL LOGIN</h3>
+    <div class="input-group"><label>E-MAIL</label><input type="email" id="authEmail" autocomplete="email"></div>
+    <div class="input-group"><label>PASSWORT (MIN. 6 ZEICHEN)</label><input type="password" id="authPw" autocomplete="current-password"></div>
+    <p id="authErr" style="color:var(--red);font-size:13px;margin:0 0 12px;"></p>
+    <div class="dialog-buttons">
+      <button type="button" class="btn btn-grey" id="authCancel">Abbrechen</button>
+      <button type="button" class="btn btn-grey" id="authRegister">Registrieren</button>
+      <button type="button" class="btn" id="authLogin">Einloggen</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="hidden"></div>
+
+<script type="module">
+/* ================= Firebase Cloud-Sync ================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDHQUXOFu7KBzlbC4MWlmNGLFQ4afhTDJ8",
+  authDomain: "ssenlog.firebaseapp.com",
+  projectId: "ssenlog",
+  storageBucket: "ssenlog.firebasestorage.app",
+  messagingSenderId: "713498629096",
+  appId: "1:713498629096:web:423519b19965675cf8ca5d"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+
+const P = 'essenlog_';
+const DATA_KEYS = ['custom_foods', 'recipes', 'profile', 'weights', 'stepslog'];
+const MEAL_RE = /^essenlog_meals_(\d{4}-\d{2}-\d{2})$/;
+const $m = id => document.getElementById(id);
+const escM = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const parse = s => { try { return JSON.parse(s); } catch (e) { return null; } };
+const toast = m => { if (window.showToast) window.showToast(m); };
+const getDirty = () => parse(lsGet(P + 'sync_dirty') || '[]') || [];
+const setDirty = a => lsSet(P + 'sync_dirty', JSON.stringify([...new Set(a)]));
+const mealKeys = () => { const o = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (MEAL_RE.test(k)) o.push(k); } return o; };
+const lastTs = arr => Array.isArray(arr) && arr.length ? Math.max(...arr.map(m => (m && m.ts) || 0)) : 0;
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+
+function hasLocalData() {
+  if (mealKeys().some(k => (parse(lsGet(k)) || []).length)) return true;
+  return DATA_KEYS.some(n => {
+    const p = parse(lsGet(P + n));
+    return p && (Array.isArray(p) ? p.length : Object.keys(p).length);
+  });
+}
+function markAllDirty() {
+  setDirty(getDirty().concat(mealKeys(), DATA_KEYS.map(n => P + n).filter(k => lsGet(k) != null)));
+}
+
+/* ---- Hochladen ---- */
+let busy = false;
+async function push() {
+  const user = auth.currentUser;
+  if (!user || busy) return false;
+  const keys = getDirty();
+  if (!keys.length) return true;
+  busy = true;
+  let ok = false;
+  try {
+    const sent = {};
+    for (const k of keys) {
+      const m = MEAL_RE.exec(k);
+      const raw = lsGet(k);
+      const json = raw != null ? raw : (m ? '[]' : null);
+      if (json == null) { sent[k] = raw; continue; }
+      if (json.length > 900000) { toast('Cloud-Sync: „' + k.slice(P.length) + '" ist zu groß'); sent[k] = raw; continue; }
+      const ref = m ? doc(db, 'users', user.uid, 'meals', m[1]) : doc(db, 'users', user.uid, 'data', k.slice(P.length));
+      await withTimeout(setDoc(ref, { json, updatedAt: Date.now() }), 15000);
+      sent[k] = raw;
+    }
+    const ts = Date.now();
+    await withTimeout(setDoc(doc(db, 'users', user.uid, 'data', 'meta'), { updatedAt: ts }), 15000);
+    // Nur Keys entfernen, die sich währenddessen nicht erneut geändert haben
+    setDirty(getDirty().filter(k => !(k in sent) || lsGet(k) !== sent[k]));
+    lsSet(P + 'sync_last', String(ts));
+    ok = true;
+  } catch (e) {
+    console.warn('Cloud-Sync Fehler:', e);
+  } finally {
+    busy = false;
+  }
+  if (ok && getDirty().length) window.scheduleSync();
+  return ok;
+}
+
+/* ---- Herunterladen ---- */
+async function fetchCloud(uid) {
+  const meals = {}, data = {};
+  (await getDocs(collection(db, 'users', uid, 'meals'))).forEach(d => { meals[d.id] = d.data(); });
+  (await getDocs(collection(db, 'users', uid, 'data'))).forEach(d => { if (DATA_KEYS.includes(d.id)) data[d.id] = d.data(); });
+  return { meals, data };
+}
+function applyCloud(c, merge) {
+  const dirty = merge ? getDirty() : [];
+  if (!merge) {
+    mealKeys().forEach(k => localStorage.removeItem(k));
+    DATA_KEYS.forEach(n => localStorage.removeItem(P + n));
+  }
+  Object.entries(c.meals).forEach(([day, d]) => {
+    const key = P + 'meals_' + day;
+    const cloudArr = parse(d.json) || [];
+    if (merge) {
+      const localArr = parse(lsGet(key));
+      if (localArr && localArr.length && lastTs(localArr) > lastTs(cloudArr)) { dirty.push(key); return; }
+    }
+    lsSet(key, JSON.stringify(cloudArr));
+  });
+  if (merge) mealKeys().forEach(k => { if (!(MEAL_RE.exec(k)[1] in c.meals) && (parse(lsGet(k)) || []).length) dirty.push(k); });
+  DATA_KEYS.forEach(n => {
+    const key = P + n;
+    const cd = c.data[n] ? parse(c.data[n].json) : null;
+    const ld = merge ? parse(lsGet(key)) : null;
+    if (cd == null) { if (ld != null) dirty.push(key); return; }
+    if (!ld) { lsSet(key, JSON.stringify(cd)); return; }
+    let out;
+    if (Array.isArray(cd)) {
+      const ids = new Set(cd.map(x => x && x.id));
+      const extra = (Array.isArray(ld) ? ld : []).filter(x => x && !ids.has(x.id));
+      out = cd.concat(extra);
+      if (extra.length) dirty.push(key);
+    } else if (n === 'profile') {
+      out = cd;
+    } else {
+      out = Object.assign({}, ld, cd);
+      if (Object.keys(ld).some(k => !(k in cd))) dirty.push(key);
+    }
+    lsSet(key, JSON.stringify(out));
+  });
+  setDirty(dirty);
+}
+
+/* ---- Abgleich ---- */
+const modalsClosed = () => ['modal', 'sheet', 'recipeModal', 'shoppingModal', 'scannerModal', 'dialogOverlay', 'emailOverlay'].every(id => { const e = $m(id); return !e || e.classList.contains('hidden'); });
+let syncing = false;
+async function initialSync(user, manual) {
+  if (syncing) return;
+  syncing = true;
+  try {
+    const metaSnap = await withTimeout(getDoc(doc(db, 'users', user.uid, 'data', 'meta')), 10000);
+    const cloudTs = metaSnap.exists() ? (metaSnap.data().updatedAt || 0) : 0;
+    const linked = lsGet(P + 'sync_uid') === user.uid;
+    const dirty = getDirty();
+    const link = () => lsSet(P + 'sync_uid', user.uid);
+
+    if (linked) {
+      const lastSync = Number(lsGet(P + 'sync_last') || 0);
+      if (cloudTs > lastSync) {
+        if (!modalsClosed()) return;
+        const c = await fetchCloud(user.uid);
+        applyCloud(c, dirty.length > 0);
+        lsSet(P + 'sync_last', String(cloudTs));
+        if (getDirty().length) await push();
+        location.reload();
+        return;
+      }
+      if (dirty.length) await push();
+      if (manual) toast('Cloud ist aktuell');
+      return;
+    }
+
+    if (!metaSnap.exists()) { markAllDirty(); link(); await push(); return; }
+
+    if (!hasLocalData()) {
+      const c = await fetchCloud(user.uid);
+      applyCloud(c, false);
+      link(); lsSet(P + 'sync_last', String(cloudTs));
+      location.reload();
+      return;
+    }
+
+    window.showDialog('Cloud-Daten gefunden', 'Auf diesem Gerät und in der Cloud sind Daten vorhanden. Was soll passieren?\n\n• Zusammenführen: beides behalten (bei gleichen Tagen gewinnt der neuere Stand)\n• Cloud übernehmen: lokale Daten werden ersetzt\n• Lokal hochladen: Cloud-Einträge dieser Tage werden überschrieben', [
+      { text: 'Cloud übernehmen', action: async () => {
+        const c = await fetchCloud(user.uid); applyCloud(c, false);
+        link(); lsSet(P + 'sync_last', String(cloudTs)); location.reload();
+      } },
+      { text: 'Lokal hochladen', action: async () => { markAllDirty(); link(); await push(); toast('Hochgeladen'); } },
+      { text: 'Zusammenführen', primary: true, action: async () => {
+        const c = await fetchCloud(user.uid); applyCloud(c, true);
+        link(); lsSet(P + 'sync_last', String(cloudTs));
+        await push(); location.reload();
+      } }
+    ]);
+  } catch (e) {
+    console.warn('Sync-Start fehlgeschlagen:', e);
+    if (manual) toast('Sync fehlgeschlagen (offline?)');
+  } finally {
+    syncing = false;
+  }
+}
+
+let syncTimer = null;
+window.scheduleSync = () => {
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => { if (auth.currentUser && lsGet(P + 'sync_uid') === auth.currentUser.uid) push(); }, 3000);
+};
+document.addEventListener('visibilitychange', () => {
+  const u = auth.currentUser; if (!u) return;
+  if (document.hidden) { if (lsGet(P + 'sync_uid') === u.uid) push(); }
+  else initialSync(u);
+});
+window.addEventListener('online', () => window.scheduleSync());
+
+/* ---- Login / Status ---- */
+const AUTH_ERR = {
+  'auth/invalid-email': 'Ungültige E-Mail-Adresse.',
+  'auth/missing-password': 'Bitte Passwort eingeben.',
+  'auth/weak-password': 'Passwort zu schwach (mind. 6 Zeichen).',
+  'auth/email-already-in-use': 'Diese E-Mail ist schon registriert – bitte einloggen.',
+  'auth/invalid-credential': 'E-Mail oder Passwort falsch (oder noch nicht registriert).',
+  'auth/wrong-password': 'Passwort falsch.',
+  'auth/user-not-found': 'Kein Konto mit dieser E-Mail – bitte registrieren.',
+  'auth/too-many-requests': 'Zu viele Versuche. Bitte später erneut probieren.',
+  'auth/network-request-failed': 'Keine Verbindung.',
+  'auth/operation-not-allowed': 'Diese Anmeldeart ist in Firebase nicht aktiviert.',
+  'auth/unauthorized-domain': 'Diese Domain ist in Firebase nicht freigegeben (Authorized domains).'
+};
+const authMsg = e => AUTH_ERR[e && e.code] || ('Fehler: ' + ((e && e.message) || e));
+
+function renderStatus(user) {
+  const c = $m('authStatus'); if (!c) return;
+  if (user) {
+    c.innerHTML = `<div class="mono" style="font-size:12px;"><b style="color:#65a30d;">● SYNC AKTIV</b><br><span style="color:var(--muted);">${escM(user.email || user.displayName || 'Google-Konto')}</span></div>
+      <div class="btn-group"><button type="button" class="btn btn-outline btn-sm" style="flex:1;" id="syncNowBtn">JETZT SYNCHRONISIEREN</button><button type="button" class="btn btn-outline btn-sm" id="logoutBtn">LOGOUT</button></div>`;
+    $m('syncNowBtn').onclick = async () => { await initialSync(user, true); if (auth.currentUser && lsGet(P + 'sync_uid') === user.uid) { markAllDirty(); const ok = await push(); toast(ok ? 'Cloud-Sync erfolgreich' : 'Sync fehlgeschlagen (offline?)'); } };
+    $m('logoutBtn').onclick = () => signOut(auth);
+  } else {
+    c.innerHTML = `<div class="note">Nicht eingeloggt – Daten bleiben nur auf diesem Gerät.</div>
+      <button type="button" class="btn btn-sm" id="loginBtn">EINLOGGEN</button>`;
+    $m('loginBtn').onclick = () => window.showDialog('Einloggen', 'Mit welcher Methode?', [
+      { text: 'Abbrechen' },
+      { text: 'E-Mail', action: openEmail },
+      { text: 'Google', primary: true, action: googleLogin }
+    ]);
+  }
+}
+async function googleLogin() {
+  const provider = new GoogleAuthProvider();
+  try { await signInWithPopup(auth, provider); }
+  catch (e) {
+    if (e && (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment')) {
+      try { await signInWithRedirect(auth, provider); } catch (e2) { window.showDialog('Login fehlgeschlagen', authMsg(e2), [{ text: 'OK', primary: true }]); }
+    } else if (!e || (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request')) {
+      window.showDialog('Google-Login fehlgeschlagen', authMsg(e), [{ text: 'OK', primary: true }]);
+    }
+  }
+}
+function openEmail() { $m('authErr').textContent = ''; $m('emailOverlay').classList.remove('hidden'); $m('authEmail').focus(); }
+function closeEmail() { $m('emailOverlay').classList.add('hidden'); $m('authPw').value = ''; }
+async function emailAuth(register) {
+  const email = $m('authEmail').value.trim(), pw = $m('authPw').value;
+  $m('authErr').textContent = '';
+  if (!email || !pw) { $m('authErr').textContent = 'E-Mail und Passwort eingeben.'; return; }
+  try {
+    if (register) await createUserWithEmailAndPassword(auth, email, pw);
+    else await signInWithEmailAndPassword(auth, email, pw);
+    closeEmail();
+  } catch (e) { $m('authErr').textContent = authMsg(e); }
+}
+$m('authCancel').onclick = closeEmail;
+$m('authLogin').onclick = () => emailAuth(false);
+$m('authRegister').onclick = () => emailAuth(true);
+
+onAuthStateChanged(auth, user => {
+  renderStatus(user);
+  if (user) initialSync(user);
+});
+</script>
 
 <script>
 /* ================= Helpers ================= */
@@ -612,7 +896,17 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp
 const dstr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const num = s => { const v = parseFloat(String(s).replace(',', '.')); return isNaN(v) ? null : v; };
 function jget(key, def) { try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch (e) { return def; } }
-function jset(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { showDialog('Fehler', 'Speichern fehlgeschlagen (Speicher voll?).', [{ text: 'OK', primary: true }]); } }
+const SYNC_KEY_RE = /^essenlog_(meals_\d{4}-\d{2}-\d{2}|custom_foods|recipes|profile|weights|stepslog)$/;
+function markDirty(key) {
+  if (!SYNC_KEY_RE.test(key)) return;
+  try {
+    const d = new Set(JSON.parse(localStorage.getItem('essenlog_sync_dirty') || '[]'));
+    d.add(key);
+    localStorage.setItem('essenlog_sync_dirty', JSON.stringify([...d]));
+  } catch (e) {}
+  if (window.scheduleSync) window.scheduleSync();
+}
+function jset(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); markDirty(key); } catch (e) { showDialog('Fehler', 'Speichern fehlgeschlagen (Speicher voll?).', [{ text: 'OK', primary: true }]); } }
 function fmt(v) {
   if (v == null || isNaN(v)) return '0';
   const a = Math.abs(v);
@@ -1614,7 +1908,7 @@ function deleteAllFromDay(ds) {
     { text: 'Abbrechen' },
     { text: 'Löschen', primary: true, action: () => {
       if (ds === today) { todayMeals = []; saveMeals(); refresh(); }
-      else { localStorage.removeItem('essenlog_meals_' + ds); }
+      else { jset('essenlog_meals_' + ds, []); }
       renderHistory();
     } }
   ]);
@@ -1829,6 +2123,7 @@ function importData(inp) {
           if (Object.keys(meals).length) bkKeys().filter(k => k.startsWith('essenlog_meals_')).forEach(k => localStorage.removeItem(k));
           Object.entries(meals).forEach(([d, a]) => localStorage.setItem('essenlog_meals_' + d, JSON.stringify(a)));
           Object.entries(set).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
+          try { localStorage.removeItem('essenlog_sync_uid'); } catch (x) {}
           const days = bkDays(); let m = 0; days.forEach(d => m += jget('essenlog_meals_' + d, []).length);
           try { sessionStorage.setItem('essenlog_importmsg', 'Backup erfolgreich wiederhergestellt!\n\nTage: ' + days.length + '\nMahlzeiten: ' + m + '\nEigene Produkte: ' + jget('essenlog_custom_foods', []).filter(f => !f.isRecipe).length); } catch (x) {}
           location.reload();

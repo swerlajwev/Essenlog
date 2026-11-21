@@ -1,4 +1,4 @@
-const CACHE = 'essenlog-v8';
+const CACHE = 'essenlog-v9';
 const ASSETS = [
   './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-48.png', './favicon.ico',
   './bls.json',
@@ -24,7 +24,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
-  if (url.hostname.includes('openfoodfacts') || url.hostname.includes('fonts.g')) return;
+  if (url.hostname.includes('openfoodfacts') || url.hostname.includes('fonts.g') || url.hostname.includes('googleapis') || url.hostname.includes('firebase') || url.hostname.includes('gstatic')) return;
   e.respondWith(
     caches.match(e.request).then(cached => {
       const network = fetch(e.request).then(res => {
