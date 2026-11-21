@@ -671,10 +671,19 @@ function markAllDirty() {
 }
 
 /* ---- Hochladen ---- */
-let busy = false;
+let busy = false, lastErr = null;
+function errMsg(e) {
+  const c = (e && e.code) || '';
+  if (c === 'permission-denied') return 'Keine Berechtigung – Firestore-Regeln prüfen';
+  if (c === 'unavailable' || (e && e.message === 'timeout')) return 'Keine Verbindung zu Firestore – Datenbank angelegt? Online?';
+  if (c === 'failed-precondition' || c === 'not-found') return 'Firestore-Datenbank fehlt – in Firebase anlegen';
+  return 'Fehler: ' + ((e && (e.code || e.message)) || e);
+}
 async function push() {
   const user = auth.currentUser;
-  if (!user || busy) return false;
+  lastErr = null;
+  if (!user) return false;
+  if (busy) { lastErr = new Error('Sync läuft bereits'); return false; }
   const keys = getDirty();
   if (!keys.length) return true;
   busy = true;
@@ -699,6 +708,7 @@ async function push() {
     ok = true;
   } catch (e) {
     console.warn('Cloud-Sync Fehler:', e);
+    lastErr = e;
   } finally {
     busy = false;
   }
@@ -805,7 +815,7 @@ async function initialSync(user, manual) {
     ]);
   } catch (e) {
     console.warn('Sync-Start fehlgeschlagen:', e);
-    if (manual) toast('Sync fehlgeschlagen (offline?)');
+    if (manual) { lastErr = e; toast('Sync fehlgeschlagen: ' + errMsg(e)); }
   } finally {
     syncing = false;
   }
@@ -844,7 +854,22 @@ function renderStatus(user) {
   if (user) {
     c.innerHTML = `<div class="mono" style="font-size:12px;"><b style="color:#65a30d;">● SYNC AKTIV</b><br><span style="color:var(--muted);">${escM(user.email || user.displayName || 'Google-Konto')}</span></div>
       <div class="btn-group"><button type="button" class="btn btn-outline btn-sm" style="flex:1;" id="syncNowBtn">JETZT SYNCHRONISIEREN</button><button type="button" class="btn btn-outline btn-sm" id="logoutBtn">LOGOUT</button></div>`;
-    $m('syncNowBtn').onclick = async () => { await initialSync(user, true); if (auth.currentUser && lsGet(P + 'sync_uid') === user.uid) { markAllDirty(); const ok = await push(); toast(ok ? 'Cloud-Sync erfolgreich' : 'Sync fehlgeschlagen (offline?)'); } };
+    $m('syncNowBtn').onclick = async () => {
+      const btn = $m('syncNowBtn');
+      if (syncing || busy) { toast('Sync läuft bereits…'); return; }
+      btn.disabled = true; toast('Synchronisiere…');
+      try {
+        await initialSync(user, true);
+        if (!modalsClosed()) return; // Auswahldialog offen
+        if (lsGet(P + 'sync_uid') !== user.uid) {
+          if (!lastErr) toast('Sync nicht verknüpft – bitte erneut versuchen');
+          return;
+        }
+        markAllDirty();
+        const ok = await push();
+        toast(ok ? 'Cloud-Sync erfolgreich' : 'Sync fehlgeschlagen: ' + errMsg(lastErr));
+      } finally { btn.disabled = false; }
+    };
     $m('logoutBtn').onclick = () => signOut(auth);
   } else {
     c.innerHTML = `<div class="note">Nicht eingeloggt – Daten bleiben nur auf diesem Gerät.</div>
