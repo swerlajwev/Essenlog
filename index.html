@@ -48,6 +48,13 @@
   .btn-grey{background:var(--track);color:var(--ink);}
   .btn-sm{height:34px;font-size:12px;padding:0 12px;}
 
+  input.rng{-webkit-appearance:none;appearance:none;width:100%;height:12px;border-radius:0;border:0;padding:0;outline:none;background:var(--track);margin:10px 0;touch-action:pan-y;}
+  input.rng::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:26px;height:26px;border-radius:50%;background:var(--ink);border:3px solid var(--card);box-shadow:0 0 0 1px var(--ink);cursor:pointer;}
+  input.rng::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--ink);border:3px solid var(--card);box-shadow:0 0 0 1px var(--ink);cursor:pointer;}
+  .plan-val{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--font-m);font-size:11px;letter-spacing:.1em;color:var(--muted);}
+  .plan-val b{font-family:var(--font-d);font-size:22px;color:var(--ink);letter-spacing:0;}
+  .legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);}
+  .legend i{display:inline-block;width:10px;height:10px;margin-right:4px;vertical-align:-1px;}
   .input-group{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
   .input-group label{font-size:11px;font-family:var(--font-m);letter-spacing:.1em;color:var(--muted);}
   .input-group input, .input-group select{padding:10px;border:1px solid var(--line);font-family:var(--font-b);font-size:16px;outline:none;width:100%;border-radius:0;background:var(--card);color:var(--ink);min-width:0;}
@@ -364,8 +371,6 @@
         <div class="input-group"><label>Geschlecht</label>
           <select id="pGender" onchange="saveProfile()"><option value="m">Männlich</option><option value="w">Weiblich</option></select>
         </div>
-        <div class="input-group"><label>Zielgewicht (kg)</label><input type="number" inputmode="decimal" step="0.1" id="pTargetWeight" placeholder="optional" onchange="saveProfile()"></div>
-        <div class="input-group"><label>Zieldatum</label><input type="date" id="pTargetDate" onchange="saveProfile()"></div>
       </div>
       <button class="btn btn-outline btn-sm" onclick="logWeight()" style="width:100%;">HEUTE WIEGEN</button>
       <div class="note">Speichert das Gewicht von heute für die Kurve im Verlauf.</div>
@@ -379,6 +384,20 @@
           <option value="aufbauen">Muskelaufbau</option><option value="zunehmen">Zunehmen</option>
           <option value="gesund">Maximal gesund</option>
         </select>
+      </div>
+      <div id="goalPlanner" class="hidden">
+        <div id="plannerMsg" class="note hidden"></div>
+        <div id="plannerBody">
+          <div class="plan-val"><span>ZIELGEWICHT</span><b id="twVal">–</b></div>
+          <input type="range" class="rng" id="twSlider" step="1" oninput="twSlide(false)" onchange="twSlide(true)">
+          <div id="dateBlock" class="hidden">
+            <div class="plan-val"><span>ZIELDATUM</span><b id="tdVal">–</b></div>
+            <input type="range" class="rng" id="tdSlider" step="1" oninput="tdSlide(false)" onchange="tdSlide(true)">
+            <div class="legend"><span><i style="background:#a1a1aa"></i>nicht möglich</span><span><i style="background:var(--red)"></i>ungesund</span><span><i style="background:var(--amber)"></i>aggressiv</span><span><i style="background:var(--green)"></i>gesund</span></div>
+            <div class="note" id="planInfo" style="margin-top:6px;"></div>
+          </div>
+          <button class="btn btn-outline btn-sm" id="planClear" onclick="clearPlan()" style="width:100%;margin-top:8px;">ZIEL LÖSCHEN</button>
+        </div>
       </div>
       <div class="stat-grid">
         <div class="stat"><span class="eyebrow">GRUNDUMSATZ</span><b id="calcBmr">0 kcal</b></div>
@@ -1211,6 +1230,70 @@ fetch('./supermarkt.json')
   }).catch(() => {});
 
 /* ================= Berechnungen ================= */
+function addDays(d) { return new Date(Date.parse(today + 'T00:00:00Z') + d * 864e5).toISOString().slice(0, 10); }
+function plannerGeo(T) {
+  const w = Number(profile.weight) || 0, tw = Number(profile.targetWeight) || 0;
+  if (!(w > tw) || !(tw > 0)) return null;
+  const diff = w - tw, floor = Math.round(T.bmr), room = Math.max(1, T.tdee - floor);
+  const dFloor = diff * 7700 / room, dOrange = diff * 7 / (0.01 * w), dGreen = diff * 7 / (0.005 * w);
+  const b1 = Math.max(7, Math.ceil(dFloor)), b2 = Math.max(b1, Math.ceil(dOrange)), b3 = Math.max(b2, Math.ceil(dGreen));
+  const dMin = 7, dMax = Math.min(1095, Math.max(Math.ceil(b3 * 1.25), b3 + 30, 60));
+  return { diff, dMin, dMax, b1, b2, b3 };
+}
+function renderPlanner(T) {
+  const box = $('goalPlanner');
+  if (!box) return;
+  const on = profile.goal === 'abnehmen';
+  box.classList.toggle('hidden', !on);
+  if (!on) return;
+  const w = Number(profile.weight) || 0, h = (Number(profile.height) || 0) / 100;
+  const minW = h > 0 ? Math.ceil(18.5 * h * h) : Math.floor(w * 0.6), maxW = Math.ceil(w) - 1;
+  const msg = $('plannerMsg'), body = $('plannerBody');
+  if (!(w > 0) || maxW < minW) {
+    msg.textContent = 'Dein Gewicht liegt schon nahe am Untergewicht (BMI 18,5). Ein Abnehmziel ist hier nicht sinnvoll.';
+    msg.classList.remove('hidden'); body.classList.add('hidden'); return;
+  }
+  msg.classList.add('hidden'); body.classList.remove('hidden');
+  const tws = $('twSlider'), tw = Number(profile.targetWeight) || 0;
+  if (tws.min != minW) tws.min = minW;
+  if (tws.max != maxW) tws.max = maxW;
+  const tv = tw > 0 ? Math.min(maxW, Math.max(minW, Math.round(tw))) : maxW;
+  if (Number(tws.value) !== tv) tws.value = tv;
+  $('twVal').textContent = tw > 0 ? tw + ' kg' : 'ziehen';
+  $('planClear').classList.toggle('hidden', !(tw > 0));
+  const g = plannerGeo(T), db = $('dateBlock');
+  if (!g) { db.classList.add('hidden'); return; }
+  db.classList.remove('hidden');
+  const tds = $('tdSlider');
+  let d = profile.targetDate ? daysUntil(profile.targetDate) : g.b3;
+  d = Math.min(g.dMax, Math.max(g.dMin, d));
+  if (tds.min != g.dMin) tds.min = g.dMin;
+  if (tds.max != g.dMax) tds.max = g.dMax;
+  if (Number(tds.value) !== d) tds.value = d;
+  const pc = b => Math.max(0, Math.min(100, (b - g.dMin) / (g.dMax - g.dMin) * 100)).toFixed(1);
+  tds.style.background = `linear-gradient(to right,#a1a1aa 0 ${pc(g.b1)}%,var(--red) ${pc(g.b1)}% ${pc(g.b2)}%,var(--amber) ${pc(g.b2)}% ${pc(g.b3)}%,var(--green) ${pc(g.b3)}% 100%)`;
+  const ds = addDays(d);
+  $('tdVal').textContent = fmtDateLong(ds);
+  const p = T.plan;
+  $('planInfo').innerHTML = p
+    ? `${d} Tage (ca. ${Math.round(d / 7)} Wochen): <b>${T.cal} kcal pro Tag</b>, ${Math.round(p.deficit)} kcal Defizit, ca. ${p.kgWeek.toFixed(2)} kg pro Woche.`
+    : '';
+}
+function twSlide(commit) {
+  profile.targetWeight = Number($('twSlider').value);
+  const T = getTargets(todaySteps()), g = plannerGeo(T);
+  if (g) {
+    let d = profile.targetDate ? daysUntil(profile.targetDate) : 0;
+    if (!(d >= g.dMin && d <= g.dMax)) profile.targetDate = addDays(Math.min(g.dMax, Math.max(g.dMin, g.b3)));
+  }
+  commit ? commitPlan() : calcAll();
+}
+function tdSlide(commit) {
+  profile.targetDate = addDays(Number($('tdSlider').value));
+  commit ? commitPlan() : calcAll();
+}
+function clearPlan() { profile.targetWeight = null; profile.targetDate = null; commitPlan(); }
+function commitPlan() { jset('essenlog_profile', profile); refresh(); }
 function daysUntil(ds) { return Math.round((Date.parse(ds + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 864e5); }
 function fmtDateLong(ds) { return ds.slice(8) + '.' + ds.slice(5, 7) + '.' + ds.slice(0, 4); }
 function goalWarning(T) {
@@ -1222,8 +1305,8 @@ function goalWarning(T) {
     const d = new Date(Date.parse(today + 'T00:00:00Z') + Math.ceil((Number(profile.weight) - Number(profile.targetWeight)) * 7700 / Math.max(1, T.tdee - p.floor)) * 864e5);
     out.push(`Zieldatum nicht machbar: Das Kalorienziel bleibt auf Höhe des Grundumsatzes (${p.floor} kcal), darunter geht die App nicht. Realistisch ca. ${fmtDateLong(d.toISOString().slice(0, 10))}.`);
   }
-  if (p.pctBw > 1 || p.pctTdee > 0.30) out.push(`Achtung, sehr aggressiv (ca. ${p.kgWeek.toFixed(2)} kg pro Woche): Muskelverlust, Hunger und Müdigkeit sind wahrscheinlich. Eiweiß hoch halten und weiter trainieren.`);
-  else if (p.pctBw > 0.75 || p.pctTdee > 0.25) out.push(`Aggressives Defizit (ca. ${p.kgWeek.toFixed(2)} kg pro Woche): Das geht, aber Muskelverlust und Müdigkeit werden wahrscheinlicher.`);
+  if (p.pctBw > 1) out.push(`Achtung, sehr aggressiv (ca. ${p.kgWeek.toFixed(2)} kg pro Woche): Muskelverlust, Hunger und Müdigkeit sind wahrscheinlich. Eiweiß hoch halten und weiter trainieren.`);
+  else if (p.pctBw > 0.5) out.push(`Aggressives Defizit (ca. ${p.kgWeek.toFixed(2)} kg pro Woche): Das geht, aber Muskelverlust und Müdigkeit werden wahrscheinlicher.`);
   if (out.length && young) out.push('Im Wachstum ist ein großes Defizit besonders heikel.');
   return out.join(' ');
 }
@@ -1293,11 +1376,12 @@ function calcAll() {
   $('calcTdee').textContent = T.tdee + ' kcal';
   $('calcTargetCal').textContent = T.cal + ' kcal';
   $('calcTargetProt').textContent = T.prot + ' g';
+  renderPlanner(T);
   const gw = $('goalWarn');
   if (gw) {
     const msg = goalWarning(T);
     gw.style.color = msg ? 'var(--red)' : 'var(--muted)';
-    gw.textContent = msg || (profile.goal === 'abnehmen' ? 'Tipp: Zielgewicht und Zieldatum eintragen, dann berechnet die App das nötige Kalorienziel.' : '');
+    gw.textContent = msg || (profile.goal === 'abnehmen' ? 'Zieh die Regler auf dein Zielgewicht und Zieldatum, dann berechnet die App das Kalorienziel.' : '');
   }
 
   const t = dayTotals(todayMeals);
@@ -1475,15 +1559,15 @@ function renderExtended() {
 
 /* ================= Profil / Schritte ================= */
 function saveProfile() {
-  const tw = $('pTargetWeight'), ppk = $('pProtPerKg');
+  const ppk = $('pProtPerKg');
   profile = {
     weight: Number($('pWeight').value), fat: Number($('pFat').value), height: Number($('pHeight').value),
     age: Number($('pAge').value), gender: $('pGender').value, goal: $('pGoal').value,
     calOv: $('pCalOv').value ? Number($('pCalOv').value) : null,
     protOv: $('pProtOv').value ? Number($('pProtOv').value) : null,
     protPerKg: ppk && ppk.value ? Number(ppk.value) : null,
-    targetWeight: tw && tw.value ? Number(tw.value) : null,
-    targetDate: $('pTargetDate') && $('pTargetDate').value ? $('pTargetDate').value : null
+    targetWeight: profile.targetWeight || null,
+    targetDate: profile.targetDate || null
   };
   jset('essenlog_profile', profile);
   refresh();
@@ -2508,8 +2592,6 @@ function init() {
   $('pGoal').value = profile.goal || 'halten';
   $('pCalOv').value = profile.calOv || '';
   $('pProtOv').value = profile.protOv || '';
-  if ($('pTargetWeight')) $('pTargetWeight').value = profile.targetWeight || '';
-  if ($('pTargetDate')) { $('pTargetDate').value = profile.targetDate || ''; $('pTargetDate').min = today; }
   if ($('pProtPerKg')) $('pProtPerKg').value = profile.protPerKg || '';
   if (profile.calOv || profile.protOv || profile.protPerKg) $('ovDetails').open = true;
   updateDietUI();
