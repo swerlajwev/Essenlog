@@ -385,6 +385,10 @@
           <option value="gesund">Maximal gesund</option>
         </select>
       </div>
+      <div class="input-group" style="margin-bottom:0;"><label>Schritte tracken</label>
+        <select id="pTrackSteps" onchange="saveProfile()"><option value="0">Nein</option><option value="1">Ja</option></select>
+        <div class="note">Nein: ohne Eintrag rechnet die App mit einem durchschnittlichen Tag. Ja: ohne Eintrag zählt der Tag als 0 Schritte (niedrigstes Kalorienziel), mit Eintrag zählt dein Wert.</div>
+      </div>
       <div id="goalPlanner" class="hidden">
         <div id="plannerMsg" class="note hidden"></div>
         <div id="plannerBody">
@@ -1138,7 +1142,7 @@ function refValue(x) {
 }
 
 /* ================= State ================= */
-let profile = Object.assign({ weight: 87.3, fat: 17.5, height: 180, age: 17, gender: 'm', goal: 'halten', calOv: null, protOv: null, protPerKg: null, targetWeight: null, targetDate: null }, jget('essenlog_profile', {}));
+let profile = Object.assign({ weight: 87.3, fat: 17.5, height: 180, age: 17, gender: 'm', goal: 'halten', calOv: null, protOv: null, protPerKg: null, targetWeight: null, targetDate: null, trackSteps: false }, jget('essenlog_profile', {}));
 let steps = jget('essenlog_steps', { date: today, count: 0 });
 let stepsLog = jget('essenlog_stepslog', {});
 let weights = jget('essenlog_weights', {});
@@ -1311,6 +1315,7 @@ function goalWarning(T) {
   return out.join(' ');
 }
 function getTargets(stepCount) {
+  if (profile.trackSteps && !(stepCount > 0)) stepCount = 0;
   const factor = stepCount >= 10000 ? 1.65 : stepCount >= 7500 ? 1.55 : stepCount >= 5000 ? 1.45 : stepCount == null ? 1.55 : 1.375;
   const w = Number(profile.weight) || 0, f = Number(profile.fat) || 0, lbm = w - f;
   const bmr = (f > 0 && lbm > 0)
@@ -1567,7 +1572,8 @@ function saveProfile() {
     protOv: $('pProtOv').value ? Number($('pProtOv').value) : null,
     protPerKg: ppk && ppk.value ? Number(ppk.value) : null,
     targetWeight: profile.targetWeight || null,
-    targetDate: profile.targetDate || null
+    targetDate: profile.targetDate || null,
+    trackSteps: $('pTrackSteps').value === '1'
   };
   jset('essenlog_profile', profile);
   refresh();
@@ -1592,7 +1598,7 @@ function openSteps(ds) {
   const cur = isToday ? (todaySteps() || 0) : (Number(stepsLog[stepsDate]) || 0);
   $('stepsTitle').textContent = isToday ? 'Schritte heute' : 'Schritte am ' + shortDate(stepsDate);
   $('stepsInput').value = cur > 0 ? cur : '';
-  $('stepsNote').textContent = 'Mehr Schritte heißt mehr Kalorienverbrauch: Dein Kalorienziel steigt mit deinen Schritten' + (isToday ? ` (aktuell Faktor ${getTargets(todaySteps()).factor.toFixed(2)}).` : '.') + ' Ohne Eingabe rechnet die App mit einem durchschnittlichen Tag. Leer lassen = Schritte löschen.';
+  $('stepsNote').textContent = 'Mehr Schritte heißt mehr Kalorienverbrauch: Dein Kalorienziel steigt mit deinen Schritten' + (isToday ? ` (aktuell Faktor ${getTargets(todaySteps()).factor.toFixed(2)}).` : '.') + (profile.trackSteps ? ' Ohne Eingabe zählt der Tag als 0 Schritte.' : ' Ohne Eingabe rechnet die App mit einem durchschnittlichen Tag.') + ' Leer lassen = Schritte löschen.';
   $('stepsOverlay').classList.remove('hidden');
   setTimeout(() => $('stepsInput').focus(), 50);
 }
@@ -2590,6 +2596,7 @@ function init() {
   $('pAge').value = profile.age || '';
   $('pGender').value = profile.gender || 'm';
   $('pGoal').value = profile.goal || 'halten';
+  $('pTrackSteps').value = profile.trackSteps ? '1' : '0';
   $('pCalOv').value = profile.calOv || '';
   $('pProtOv').value = profile.protOv || '';
   if ($('pProtPerKg')) $('pProtPerKg').value = profile.protPerKg || '';
