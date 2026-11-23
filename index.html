@@ -365,6 +365,7 @@
           <select id="pGender" onchange="saveProfile()"><option value="m">Männlich</option><option value="w">Weiblich</option></select>
         </div>
         <div class="input-group"><label>Zielgewicht (kg)</label><input type="number" inputmode="decimal" step="0.1" id="pTargetWeight" placeholder="optional" onchange="saveProfile()"></div>
+        <div class="input-group"><label>Zieldatum</label><input type="date" id="pTargetDate" onchange="saveProfile()"></div>
       </div>
       <button class="btn btn-outline btn-sm" onclick="logWeight()" style="width:100%;">HEUTE WIEGEN</button>
       <div class="note">Speichert das Gewicht von heute für die Kurve im Verlauf.</div>
@@ -385,6 +386,7 @@
         <div class="stat"><span class="eyebrow">KALORIENZIEL</span><b id="calcTargetCal">0 kcal</b></div>
         <div class="stat"><span class="eyebrow">EIWEISSZIEL</span><b id="calcTargetProt">0 g</b></div>
       </div>
+      <div class="note" id="goalWarn" style="margin-top:8px;"></div>
       <details class="fold" id="ovDetails">
         <summary>Ziele selbst festlegen (optional)</summary>
         <div class="fold-body">
@@ -1117,7 +1119,7 @@ function refValue(x) {
 }
 
 /* ================= State ================= */
-let profile = Object.assign({ weight: 87.3, fat: 17.5, height: 180, age: 17, gender: 'm', goal: 'halten', calOv: null, protOv: null, protPerKg: null, targetWeight: null }, jget('essenlog_profile', {}));
+let profile = Object.assign({ weight: 87.3, fat: 17.5, height: 180, age: 17, gender: 'm', goal: 'halten', calOv: null, protOv: null, protPerKg: null, targetWeight: null, targetDate: null }, jget('essenlog_profile', {}));
 let steps = jget('essenlog_steps', { date: today, count: 0 });
 let stepsLog = jget('essenlog_stepslog', {});
 let weights = jget('essenlog_weights', {});
@@ -1209,6 +1211,22 @@ fetch('./supermarkt.json')
   }).catch(() => {});
 
 /* ================= Berechnungen ================= */
+function daysUntil(ds) { return Math.round((Date.parse(ds + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 864e5); }
+function fmtDateLong(ds) { return ds.slice(8) + '.' + ds.slice(5, 7) + '.' + ds.slice(0, 4); }
+function goalWarning(T) {
+  const p = T.plan;
+  if (!p) return '';
+  const young = Number(profile.age) > 0 && Number(profile.age) < 18;
+  let out = [];
+  if (p.capped) {
+    const d = new Date(Date.parse(today + 'T00:00:00Z') + Math.ceil((Number(profile.weight) - Number(profile.targetWeight)) * 7700 / Math.max(1, T.tdee - p.floor)) * 864e5);
+    out.push(`Zieldatum nicht machbar: Das Kalorienziel bleibt auf Höhe des Grundumsatzes (${p.floor} kcal), darunter geht die App nicht. Realistisch ca. ${fmtDateLong(d.toISOString().slice(0, 10))}.`);
+  }
+  if (p.pctBw > 1 || p.pctTdee > 0.30) out.push(`Achtung, sehr aggressiv (ca. ${p.kgWeek.toFixed(2)} kg pro Woche): Muskelverlust, Hunger und Müdigkeit sind wahrscheinlich. Eiweiß hoch halten und weiter trainieren.`);
+  else if (p.pctBw > 0.75 || p.pctTdee > 0.25) out.push(`Aggressives Defizit (ca. ${p.kgWeek.toFixed(2)} kg pro Woche): Das geht, aber Muskelverlust und Müdigkeit werden wahrscheinlicher.`);
+  if (out.length && young) out.push('Im Wachstum ist ein großes Defizit besonders heikel.');
+  return out.join(' ');
+}
 function getTargets(stepCount) {
   const factor = stepCount >= 10000 ? 1.65 : stepCount >= 7500 ? 1.55 : stepCount >= 5000 ? 1.45 : stepCount == null ? 1.55 : 1.375;
   const w = Number(profile.weight) || 0, f = Number(profile.fat) || 0, lbm = w - f;
@@ -1217,12 +1235,20 @@ function getTargets(stepCount) {
     : (10 * w) + (6.25 * (Number(profile.height) || 0)) - (5 * (Number(profile.age) || 0)) + (profile.gender === 'w' ? -161 : 5);
   const tdee = Math.round(bmr * factor);
   const g = { halten: [1, 1.8], abnehmen: [0.85, 2.2], aufbauen: [1.10, 2.0], zunehmen: [1.15, 1.8], gesund: [1, 1.8] }[profile.goal] || [1, 1.8];
-  const cal = Number(profile.calOv) > 0 ? Number(profile.calOv) : Math.round(tdee * g[0]);
+  let cal, plan = null;
+  const tw = Number(profile.targetWeight), days = profile.targetDate ? daysUntil(profile.targetDate) : 0;
+  if (Number(profile.calOv) > 0) cal = Number(profile.calOv);
+  else if (profile.goal === 'abnehmen' && tw > 0 && w > tw && days > 0) {
+    const needed = Math.round((w - tw) * 7700 / days), floor = Math.round(bmr);
+    cal = Math.max(floor, tdee - needed);
+    const deficit = tdee - cal;
+    plan = { days, needed, deficit, capped: tdee - needed < floor, kgWeek: deficit * 7 / 7700, pctBw: deficit * 7 / 7700 / w * 100, pctTdee: deficit / tdee, floor };
+  } else cal = Math.round(tdee * g[0]);
   const protPerKg = Number(profile.protPerKg) > 0 ? Number(profile.protPerKg) : g[1];
   const prot = Number(profile.protOv) > 0 ? Number(profile.protOv) : Math.round(w * protPerKg);
   const fiber = 30, sugarMax = Math.round(cal * 0.10 / 4), satMax = Math.round(cal * 0.10 / 9), saltMax = 6;
   const fatT = Math.round(cal * 0.30 / 9), carbT = Math.max(0, Math.round((cal - prot * 4 - fatT * 9) / 4));
-  return { factor, bmr, tdee, cal, prot, fiber, sugarMax, satMax, saltMax, fatT, carbT };
+  return { factor, bmr, tdee, cal, prot, fiber, sugarMax, satMax, saltMax, fatT, carbT, plan };
 }
 const todaySteps = () => {
   const s = (steps.date === today && Number(steps.count) > 0) ? Number(steps.count) : (Number(stepsLog[today]) || 0);
@@ -1267,6 +1293,12 @@ function calcAll() {
   $('calcTdee').textContent = T.tdee + ' kcal';
   $('calcTargetCal').textContent = T.cal + ' kcal';
   $('calcTargetProt').textContent = T.prot + ' g';
+  const gw = $('goalWarn');
+  if (gw) {
+    const msg = goalWarning(T);
+    gw.style.color = msg ? 'var(--red)' : 'var(--muted)';
+    gw.textContent = msg || (profile.goal === 'abnehmen' ? 'Tipp: Zielgewicht und Zieldatum eintragen, dann berechnet die App das nötige Kalorienziel.' : '');
+  }
 
   const t = dayTotals(todayMeals);
   const calOver = t.kcal - T.cal;
@@ -1295,10 +1327,14 @@ function calcAll() {
     else {
       const deficit = T.tdee - T.cal;
       const diff = profile.weight - tw;
-      if (Math.abs(deficit) < 30) progEl.textContent = 'Bei dieser Kalorienzufuhr bleibt das Gewicht stabil.';
+      if (T.plan && !T.plan.capped) {
+        progEl.innerHTML = `<b>Abnehmen: ${diff.toFixed(1)} kg bis ${fmtDateLong(profile.targetDate)}</b><br>${T.plan.days} Tage: ${Math.round(deficit)} kcal Defizit/Tag (ca. ${T.plan.kgWeek.toFixed(2)} kg pro Woche).`;
+        const wm = goalWarning(T); if (wm) progEl.innerHTML += `<br><span style="color:var(--red)">${wm}</span>`;
+      }
+      else if (Math.abs(deficit) < 30) progEl.textContent = 'Bei dieser Kalorienzufuhr bleibt das Gewicht stabil.';
       else {
         const weeks = (Math.abs(diff) * 7700 / Math.abs(deficit)) / 7;
-        progEl.innerHTML = `<b>${diff > 0 ? 'Abnehmen' : 'Zunehmen'}: ${Math.abs(diff).toFixed(1)} kg</b><br>Ca. <b>${Math.round(weeks)} Wochen</b> bei ${Math.round(Math.abs(deficit))} kcal ${deficit > 0 ? 'Defizit' : 'Überschuss'}/Tag.`;
+        progEl.innerHTML = `<b>${diff > 0 ? 'Abnehmen' : 'Zunehmen'}: ${Math.abs(diff).toFixed(1)} kg</b><br>Ca. <b>${Math.round(weeks)} Wochen</b> bei ${Math.round(Math.abs(deficit))} kcal ${deficit > 0 ? 'Defizit' : 'Überschuss'}/Tag.` + (T.plan ? `<br><span style="color:var(--red)">${goalWarning(T)}</span>` : '');
       }
     }
   }
@@ -1446,7 +1482,8 @@ function saveProfile() {
     calOv: $('pCalOv').value ? Number($('pCalOv').value) : null,
     protOv: $('pProtOv').value ? Number($('pProtOv').value) : null,
     protPerKg: ppk && ppk.value ? Number(ppk.value) : null,
-    targetWeight: tw && tw.value ? Number(tw.value) : null
+    targetWeight: tw && tw.value ? Number(tw.value) : null,
+    targetDate: $('pTargetDate') && $('pTargetDate').value ? $('pTargetDate').value : null
   };
   jset('essenlog_profile', profile);
   refresh();
@@ -2472,6 +2509,7 @@ function init() {
   $('pCalOv').value = profile.calOv || '';
   $('pProtOv').value = profile.protOv || '';
   if ($('pTargetWeight')) $('pTargetWeight').value = profile.targetWeight || '';
+  if ($('pTargetDate')) { $('pTargetDate').value = profile.targetDate || ''; $('pTargetDate').min = today; }
   if ($('pProtPerKg')) $('pProtPerKg').value = profile.protPerKg || '';
   if (profile.calOv || profile.protOv || profile.protPerKg) $('ovDetails').open = true;
   updateDietUI();
