@@ -1871,16 +1871,17 @@ function openAmount(food, editIndex = null, callback = null) {
   sheetCtx = { food, editIndex, callback, chipText: null };
   const isDrink = DRINK_KEYWORDS.test(food.name);
   const unit = isDrink ? 'ml' : 'g';
-  const g = editIndex !== null ? todayMeals[editIndex].grams : (lastGrams[food.id] || (isDrink ? 200 : 100));
+  const g = editIndex !== null ? todayMeals[editIndex].grams : (lastGrams[food.id] || (food.supp ? food.servingGrams : (isDrink ? 200 : 100)));
   $('sheetTitle').textContent = food.name;
   $('sheetInfo').textContent = `${food.kcal != null ? Math.round(food.kcal) : '?'} kcal · ${(food.prot || 0).toFixed(1)} g Eiweiß pro 100 ${unit}`;
   const labelEl = $('amtInput').closest('.input-group').querySelector('label');
   if (labelEl) labelEl.textContent = isDrink ? 'MENGE (ML)' : 'MENGE (GRAMM)';
   $('amountForm').classList.remove('hidden'); $('manualForm').classList.add('hidden');
   $('amtOk').textContent = editIndex !== null ? 'SPEICHERN' : (callback ? 'ZUTAT HINZUFÜGEN' : 'HINZUFÜGEN');
-  $('microBtn').classList.toggle('hidden', !!callback || blsSet.has(food.id) || food.isRecipe || NUT.every(x => food[x.k] != null));
+  $('microBtn').classList.toggle('hidden', !!callback || blsSet.has(food.id) || food.isRecipe || food.supp || NUT.every(x => food[x.k] != null));
   $('editFoodBtn').classList.toggle('hidden', !!callback || blsSet.has(food.id) || !!food.isRecipe || !customFoods.some(f => f.id === food.id));
   if (food.microsFrom) $('sheetInfo').textContent += ` · Mikros geschätzt nach: ${food.microsFrom}`;
+  if (food.supp) $('sheetInfo').textContent = food.portionLabel + ' · Werte pro Portion laut Etikett';
 
   const catSel = $('mealCategory');
   if (catSel && !callback) {
@@ -1892,7 +1893,7 @@ function openAmount(food, editIndex = null, callback = null) {
   }
 
   chipN = 0; chipLast = null;
-  const ps = (food.isRecipe && food.servingGrams)
+  const ps = food.supp ? [[food.portionLabel, food.servingGrams]] : (food.isRecipe && food.servingGrams)
     ? [['1 Portion (' + Math.round(food.servingGrams) + ' g)', Math.round(food.servingGrams)], ['100 g', 100]]
     : portionsFor(food.name);
   $('portionChips').innerHTML = ps.map((p, i) => `<button class="chip" data-i="${i}">${esc(p[0])}</button>`).join('');
@@ -1901,7 +1902,7 @@ function openAmount(food, editIndex = null, callback = null) {
     const i = +b.dataset.i;
     chipN = (chipLast === i) ? chipN + 1 : 1; chipLast = i;
     sheetCtx.chipText = ps[i][0];
-    $('amtInput').value = ps[i][1] * chipN;
+    $('amtInput').value = Math.round(ps[i][1] * chipN * 100) / 100;
     syncPieceCount();
     updatePreview(chipN > 1 ? `${chipN} × ${ps[i][0]}` : '');
   };
@@ -2588,7 +2589,54 @@ function switchTab(tab) {
   window.scrollTo(0, 0);
 }
 
+const SUPP_DEFS = [
+  { id: 'supp_ashwagandha', name: 'Ashwagandha Kapseln (Body Attack)', portionG: 1.18, label: '1 Portion = 2 Kapseln (1,18 g)', ptxt: '2 Kapseln', v: { magnesium: 65, zink: 2, vitB6: 0.22 } },
+  { id: 'supp_pre_wassermelone', name: 'Pre-Workout Wassermelone', portionG: 10, label: '1 Portion (10 g)', ptxt: '1 Portion', v: { caffeine: 136, ile: 340, leu: 680, val: 340 } },
+  { id: 'supp_pre_apfel', name: 'Pre-Workout Grüner Apfel Fruchtmix', portionG: 8, label: '1 Portion (8 g)', ptxt: '1 Portion', v: { caffeine: 200, vitB3: 48 } }
+];
+function suppEntry(d, ds, hour, meal) {
+  const n = {};
+  ALLK.forEach(k => n[k] = null);
+  n.kcal = 0; n.prot = 0; n.fat = 0; n.carb = 0;
+  Object.keys(d.v).forEach(k => n[k] = Math.round(d.v[k] * 100 / d.portionG * 1e4) / 1e4);
+  return { id: d.id, name: d.name, grams: d.portionG, n, meal, ts: new Date(ds + 'T' + hour + ':00:00').getTime(), portion: d.ptxt };
+}
+function seedSupplements() {
+  try {
+    if (localStorage.getItem('essenlog_migr_supp1')) return;
+    let foodsAdded = false;
+    SUPP_DEFS.forEach(d => {
+      if (customFoods.some(f => f.id === d.id)) return;
+      const f = { id: d.id, name: d.name, kcal: 0, prot: 0, fat: 0, carb: 0, manual: true, supp: true, servingGrams: d.portionG, portionLabel: d.label };
+      Object.keys(d.v).forEach(k => f[k] = Math.round(d.v[k] * 100 / d.portionG * 1e4) / 1e4);
+      customFoods = customFoods.concat(f); foodsAdded = true;
+    });
+    if (foodsAdded) { jset('essenlog_custom_foods', customFoods); buildIndex(); }
+    const YESTERDAY = '2026-11-22';
+    const days = new Set([YESTERDAY]);
+    for (let i = 0; i < localStorage.length; i++) {
+      const m = /^essenlog_meals_(\d{4}-\d{2}-\d{2})$/.exec(localStorage.key(i) || '');
+      if (m && m[1] < today && (jget(localStorage.key(i), []) || []).length) days.add(m[1]);
+    }
+    let cnt = 0;
+    days.forEach(ds => {
+      if (ds >= today) return;
+      const arr = jget('essenlog_meals_' + ds, []) || [];
+      let changed = false;
+      if (!arr.some(e => e.id === 'supp_ashwagandha')) { arr.push(suppEntry(SUPP_DEFS[0], ds, '08', 'breakfast')); changed = true; cnt++; }
+      if (ds === YESTERDAY && !arr.some(e => e.id === 'supp_pre_apfel')) { arr.push(suppEntry(SUPP_DEFS[2], ds, '16', 'snack')); changed = true; }
+      if (changed) jset('essenlog_meals_' + ds, arr);
+    });
+    SUPP_DEFS.forEach(d => { if (lastGrams[d.id] == null) lastGrams[d.id] = d.portionG; });
+    jset('essenlog_lastgrams', lastGrams);
+    recentIds = SUPP_DEFS.map(d => d.id).concat(recentIds.filter(i => !SUPP_DEFS.some(d => d.id === i))).slice(0, 12);
+    jset('essenlog_recent', recentIds);
+    localStorage.setItem('essenlog_migr_supp1', '1');
+    if (cnt) setTimeout(() => showToast(`Ashwagandha bei ${cnt} Tagen nachgetragen`), 800);
+  } catch (e) { console.warn('Supplements-Seed fehlgeschlagen', e); }
+}
 function init() {
+  seedSupplements();
   applyTheme();
   $('pWeight').value = profile.weight || '';
   $('pFat').value = profile.fat || '';
