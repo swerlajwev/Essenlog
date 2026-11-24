@@ -279,6 +279,7 @@
   <div id="tab-home">
     <div class="row topbar" style="align-items:flex-end;flex-wrap:wrap;gap:8px;">
       <div><div class="eyebrow" id="todayDate">HEUTE</div><h1 class="display">ÜBERSICHT</h1></div>
+      <label id="suppChk" style="display:flex;align-items:center;gap:8px;margin-left:auto;cursor:pointer;font-size:13px;font-weight:600;user-select:none;"><input type="checkbox" id="suppAshwa" onchange="toggleAshwa(this.checked)" style="width:22px;height:22px;accent-color:var(--ink);margin:0;"><span>Ashwagandha<br><span class="note" style="font-weight:400;">früh + abends</span></span></label>
       <div class="btn-group" style="width:100%;">
         <button class="btn btn-outline" id="stepBtn" style="padding:0 10px;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="openSteps()" aria-label="Schritte eintragen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg><span id="stepBtnTxt" class="mono" style="font-size:11px;"></span></button>
         <button class="btn btn-outline" style="padding: 0 12px; display: flex; align-items: center; justify-content: center;" onclick="startScanner()" aria-label="Barcode scannen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg></button>
@@ -1403,7 +1404,13 @@ function setHistMode(m) { histMode = m; try { localStorage.setItem('el_ui_histmo
 function histWeekNav(d) { histWeekOff = Math.max(-104, Math.min(0, histWeekOff + d)); renderHistory(); }
 
 /* ================= Rendering ================= */
-function refresh() { calcAll(); renderMeals(); renderMicros(); renderExtended(); }
+function toggleAshwa(on) {
+  const has = todayMeals.some(m => m.id === 'supp_ashwagandha');
+  if (on && !has) { const e = suppEntry(SUPP_DEFS[0], today, '08', 'breakfast'); e.ts = Date.now(); todayMeals.push(e); }
+  if (!on && has) todayMeals = todayMeals.filter(m => m.id !== 'supp_ashwagandha');
+  saveMeals(); refresh();
+}
+function refresh() { const c = $('suppAshwa'); if (c) c.checked = todayMeals.some(m => m.id === 'supp_ashwagandha'); calcAll(); renderMeals(); renderMicros(); renderExtended(); }
 
 function setVal(key, cur, tgt, unit, over) {
   const bar = $('b-' + key), val = $('v-' + key);
@@ -2802,6 +2809,20 @@ function suppEntry(d, ds, hour, meal) {
   Object.keys(d.v).forEach(k => n[k] = Math.round(d.v[k] * 100 / d.portionG * 1e4) / 1e4);
   return { id: d.id, name: d.name, grams: d.portionG, n, meal, ts: new Date(ds + 'T' + hour + ':00:00').getTime(), portion: d.ptxt };
 }
+function seedAshwaAll() {
+  try {
+    if (localStorage.getItem('essenlog_migr_supp2')) return;
+    let cnt = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const m = /^essenlog_meals_(\d{4}-\d{2}-\d{2})$/.exec(localStorage.key(i) || '');
+      if (!m || m[1] >= today) continue;
+      const k = localStorage.key(i), arr = jget(k, []) || [];
+      if (arr.length && !arr.some(e => e.id === 'supp_ashwagandha')) { arr.push(suppEntry(SUPP_DEFS[0], m[1], '08', 'breakfast')); jset(k, arr); cnt++; }
+    }
+    localStorage.setItem('essenlog_migr_supp2', '1');
+    if (cnt) setTimeout(() => showToast(`Ashwagandha bei ${cnt} weiteren Tagen nachgetragen`), 800);
+  } catch (e) { console.warn('Ashwa-Seed fehlgeschlagen', e); }
+}
 function seedSupplements() {
   try {
     if (localStorage.getItem('essenlog_migr_supp1')) return;
@@ -2838,6 +2859,7 @@ function seedSupplements() {
 }
 function init() {
   seedSupplements();
+  seedAshwaAll();
   applyTheme();
   $('pWeight').value = profile.weight || '';
   $('pFat').value = profile.fat || '';
