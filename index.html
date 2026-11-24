@@ -90,6 +90,18 @@
   .meal-item .txt{flex:1;cursor:pointer;min-width:0;}
   .meal-item .name{font-size:13px;font-weight:500;overflow-wrap:anywhere;}
   .meal-item .macros{font-size:12px;font-family:var(--font-m);color:var(--muted);}
+  .meal-item{flex-wrap:wrap;-webkit-touch-callout:none;}
+  .meal-item .more{font-size:16px;color:var(--muted);}
+  .meal-detail{flex-basis:100%;border-top:1px dashed var(--line);margin-top:6px;padding-top:6px;font-size:12px;font-family:var(--font-m);}
+  .meal-detail .dh{font-size:10px;letter-spacing:.12em;color:var(--muted);margin:8px 0 2px;}
+  .meal-detail .dr{display:flex;justify-content:space-between;padding:2px 0;}
+  .meal-detail .dr.sub{padding-left:14px;color:var(--muted);}
+  .dragging-item{position:fixed;z-index:9999;pointer-events:none;opacity:.92;box-shadow:0 8px 24px rgba(0,0,0,.25);margin:0!important;}
+  .meal-item.drag-src{opacity:.35;}
+  body.is-dragging{user-select:none;-webkit-user-select:none;}
+  .mealcard.drop-hot{outline:3px solid var(--ink);outline-offset:-3px;}
+  .mealcard.dz-empty{opacity:.75;}
+  .mealcard.dz-empty .dz{padding:14px;text-align:center;font-size:12px;color:var(--muted);font-family:var(--font-m);}
   .meal-item button{background:none;border:none;color:var(--pink);font-size:22px;cursor:pointer;padding:4px 8px; touch-action: manipulation;}
 
   .macro-row{display:flex;gap:8px;}
@@ -527,25 +539,17 @@
     </div>
     <div id="manualForm" class="hidden">
       <div class="input-group"><label>PRODUKTNAME (PFLICHT)</label><input type="text" id="mName" placeholder="z.B. Buchweizen (geschält)"></div>
-      <div style="display:flex;gap:10px;margin-bottom:12px;">
-        <div class="input-group" style="flex:1;margin-bottom:0;"><label>KCAL / 100G</label><input type="number" step="0.1" id="m_kcal" placeholder="z.B. 340"></div>
-        <div class="input-group" style="flex:1;margin-bottom:0;"><label>EIWEISS / 100G</label><input type="number" step="0.01" id="m_prot" placeholder="z.B. 13.2"></div>
-      </div>
-      <div style="display:flex;gap:10px;margin-bottom:12px;">
-        <div class="input-group" style="flex:1;margin-bottom:0;"><label>FETT / 100G</label><input type="number" step="0.01" id="m_fat" placeholder="z.B. 6.6"></div>
-        <div class="input-group" style="flex:1;margin-bottom:0;"><label>KOHLENHYDR. / 100G</label><input type="number" step="0.01" id="m_carb" placeholder="z.B. 53.3"></div>
-      </div>
-      <div style="display:flex;gap:10px;margin-bottom:15px;">
-        <div class="input-group" style="flex:1;margin-bottom:0;"><label>DAVON GES. FETT / 100G</label><input type="number" step="0.01" id="m_satfat"></div>
-        <div class="input-group" style="flex:1;margin-bottom:0;"><label>DAVON ZUCKER / 100G</label><input type="number" step="0.01" id="m_sugar" placeholder="z.B. 4.1"></div>
-      </div>
-      <div style="display:flex;gap:10px;margin-bottom:15px;">
-        <div class="input-group" style="flex:1;margin-bottom:0;"><label>BALLASTSTOFFE / 100G</label><input type="number" step="0.01" id="m_fib" placeholder="z.B. 10.0"></div>
-        <div class="input-group" style="flex:1;margin-bottom:0;"><label>GEWICHT / STÜCK (G)</label><input type="number" step="0.1" id="m_piece" placeholder="z.B. 50"></div>
-      </div>
-      <div style="display:flex;gap:10px;margin-bottom:15px;">
-        <div class="input-group" style="flex:1;margin-bottom:0;"><label>NATRIUM (mg)</label><input type="number" step="1" id="m_natrium" oninput="syncNaCl('na')"></div>
-        <div class="input-group" style="flex:1;margin-bottom:0;"><label>SALZ (g)</label><input type="number" step="0.01" id="m_salt" oninput="syncNaCl('salt')"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;">
+        <div class="input-group" style="margin:0;"><label>ENERGIE (KCAL / 100G)</label><input type="number" step="0.1" id="m_kcal" placeholder="z.B. 340"></div>
+        <div class="input-group" style="margin:0;"><label>FETT / 100G</label><input type="number" step="0.01" id="m_fat" placeholder="z.B. 6.6"></div>
+        <div class="input-group" style="margin:0;"><label>DAVON GES. FETTSÄUREN</label><input type="number" step="0.01" id="m_satfat"></div>
+        <div class="input-group" style="margin:0;"><label>KOHLENHYDR. / 100G</label><input type="number" step="0.01" id="m_carb" placeholder="z.B. 53.3"></div>
+        <div class="input-group" style="margin:0;"><label>DAVON ZUCKER</label><input type="number" step="0.01" id="m_sugar" placeholder="z.B. 4.1"></div>
+        <div class="input-group" style="margin:0;"><label>BALLASTSTOFFE / 100G</label><input type="number" step="0.01" id="m_fib" placeholder="z.B. 10.0"></div>
+        <div class="input-group" style="margin:0;"><label>EIWEISS / 100G</label><input type="number" step="0.01" id="m_prot" placeholder="z.B. 13.2"></div>
+        <div class="input-group" style="margin:0;"><label>SALZ (g)</label><input type="number" step="0.01" id="m_salt" oninput="syncNaCl('salt')"></div>
+        <div class="input-group" style="margin:0;"><label>NATRIUM (mg)</label><input type="number" step="1" id="m_natrium" oninput="syncNaCl('na')"></div>
+        <div class="input-group" style="margin:0;"><label>GEWICHT / STÜCK (G)</label><input type="number" step="0.1" id="m_piece" placeholder="z.B. 50"></div>
       </div>
       <details style="margin-bottom:15px;background:#f4f4f5;padding:10px;">
         <summary class="eyebrow" style="cursor:pointer;font-weight:600;color:var(--ink);">FETTSÄUREN-DETAILS (OPTIONAL)</summary>
@@ -1431,6 +1435,23 @@ function calcAll() {
 
 const MEAL_LABELS = { breakfast: 'FRÜHSTÜCK', lunch: 'MITTAG', dinner: 'ABEND', snack: 'SNACK' };
 
+const openDetails = new Set();
+const detailKey = m => m.id + '@' + m.ts;
+function fmtV(x) { const a = Math.abs(x), d = a >= 100 ? 0 : a >= 10 ? 1 : 2; return String(+x.toFixed(d)).replace('.', ','); }
+const MACRO_ROWS = [['kcal', 'Energie', 'kcal', 0], ['fat', 'Fett', 'g', 0], ['satfat', 'davon ges. Fettsäuren', 'g', 1], ['carb', 'Kohlenhydrate', 'g', 0], ['sugar', 'davon Zucker', 'g', 1], ['fib', 'Ballaststoffe', 'g', 0], ['prot', 'Eiweiß', 'g', 0], ['salt', 'Salz', 'g', 0]];
+function detailHTML(m) {
+  const f = m.grams / 100, n = m.n || {};
+  const row = (label, k, unit, sub) => n[k] == null ? '' : `<div class="dr${sub ? ' sub' : ''}"><span>${esc(label)}</span><span>${fmtV(n[k] * f)} ${unit}</span></div>`;
+  let h = '<div class="meal-detail"><div class="dh">NÄHRWERTE</div>';
+  MACRO_ROWS.forEach(([k, l, u, sub]) => h += row(l, k, u, sub));
+  const ext = EXTENDED.map(x => row(x.label, x.k, x.unit, 1)).join('');
+  if (ext) h += '<div class="dh">WEITERE STOFFE</div>' + ext;
+  [['vit', 'VITAMINE'], ['min', 'MINERALSTOFFE'], ['oth', 'SONSTIGES']].forEach(([g, t]) => {
+    const r = NUT.filter(x => x.grp === g).map(x => row(x.label, x.k, x.unit, 0)).join('');
+    if (r) h += `<div class="dh">${t}</div>` + r;
+  });
+  return h + '</div>';
+}
 function renderMeals() {
   const list = $('mealList');
   $('copyYesterday').classList.toggle('hidden', todayMeals.length > 0);
@@ -1454,7 +1475,9 @@ function renderMeals() {
           <div class="name">${esc(m.name)}</div>
           <div class="macros">${fmt(m.grams)} ${unitOf(m.name)}${portionTxt} · ${Math.round((m.n.kcal || 0) * f)} kcal · ${((m.n.prot || 0) * f).toFixed(1)} g P${time ? ' · ' + time : ''}</div>
         </div>
+        <button class="more" data-more="${i}" aria-label="Alle Werte anzeigen">${openDetails.has(detailKey(m)) ? '▴' : '▾'}</button>
         <button data-del="${i}" aria-label="Eintrag löschen">&times;</button>
+        ${openDetails.has(detailKey(m)) ? detailHTML(m) : ''}
       </div>`;
     });
     html += '</div>';
@@ -1463,8 +1486,10 @@ function renderMeals() {
 }
 
 $('mealList').addEventListener('click', e => {
-  const ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]');
-  if (ed) { const i = +ed.dataset.edit; openAmount(foodForMeal(todayMeals[i]), i); }
+  if (justDragged) return;
+  const ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]'), mo = e.target.closest('[data-more]');
+  if (mo) { const m = todayMeals[+mo.dataset.more]; if (m) { const k = detailKey(m); openDetails.has(k) ? openDetails.delete(k) : openDetails.add(k); renderMeals(); } }
+  else if (ed) { const i = +ed.dataset.edit; openAmount(foodForMeal(todayMeals[i]), i); }
   else if (del) {
     const i = +del.dataset.del;
     const target = todayMeals[i]; if (!target) return;
@@ -1481,6 +1506,83 @@ $('mealList').addEventListener('click', e => {
     ]);
   }
 });
+/* Drag & Drop: lange drücken (0,5 s), dann auf eine andere Mahlzeit ziehen */
+let justDragged = false;
+(function () {
+  const list = $('mealList'), HOLD = 500, SLOP = 12;
+  let timer = null, st = null, drag = null, scrollTimer = null;
+  const pt = e => (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+  function scroller() { let el = list.parentElement; while (el && el !== document.body) { const o = getComputedStyle(el).overflowY; if ((o === 'auto' || o === 'scroll') && el.scrollHeight > el.clientHeight) return el; el = el.parentElement; } return null; }
+  function cancelHold() { clearTimeout(timer); timer = null; }
+  function addZones() {
+    const have = new Set([...list.querySelectorAll('.mealcard:not(.dz-empty)')].map(c => [...c.classList].find(x => x.startsWith('mc-')).slice(3)));
+    const keys = Object.keys(MEAL_LABELS);
+    keys.forEach((k, idx) => {
+      if (have.has(k)) return;
+      const z = document.createElement('div'); z.className = 'mealcard mc-' + k + ' dz-empty'; z.dataset.zone = k;
+      z.innerHTML = `<div class="mh"><span>${MEAL_LABELS[k]}</span></div><div class="dz">hier ablegen</div>`;
+      let next = null;
+      for (let j = idx + 1; j < keys.length && !next; j++) next = list.querySelector('.mc-' + keys[j]);
+      list.insertBefore(z, next);
+    });
+  }
+  function zoneAt(x, y) {
+    const el = document.elementFromPoint(x, y); const c = el && el.closest('.mealcard'); if (!c || !list.contains(c)) return null;
+    return [...c.classList].find(k => k.startsWith('mc-')).slice(3);
+  }
+  function startDrag(itemEl, idx, x, y) {
+    const r = itemEl.getBoundingClientRect();
+    const ghost = itemEl.cloneNode(true); ghost.classList.add('dragging-item'); ghost.style.width = r.width + 'px'; ghost.style.left = r.left + 'px'; ghost.style.top = r.top + 'px';
+    ghost.querySelectorAll('.meal-detail').forEach(d => d.remove());
+    document.body.appendChild(ghost); itemEl.classList.add('drag-src'); document.body.classList.add('is-dragging');
+    drag = { idx, ghost, itemEl, dx: x - r.left, dy: y - r.top, zone: null, y };
+    addZones();
+    if (navigator.vibrate) try { navigator.vibrate(20); } catch (e) {}
+    const sc = scroller();
+    scrollTimer = setInterval(() => {
+      if (!drag) return; const h = window.innerHeight, sp = 12;
+      const d = drag.y < 90 ? -sp : drag.y > h - 90 ? sp : 0; if (!d) return;
+      if (sc) sc.scrollTop += d; else window.scrollBy(0, d);
+    }, 16);
+  }
+  function move(x, y) {
+    drag.y = y; drag.ghost.style.left = (x - drag.dx) + 'px'; drag.ghost.style.top = (y - drag.dy) + 'px';
+    const z = zoneAt(x, y);
+    if (z !== drag.zone) { list.querySelectorAll('.drop-hot').forEach(c => c.classList.remove('drop-hot')); const c = z && list.querySelector('.mc-' + z); if (c) c.classList.add('drop-hot'); drag.zone = z; }
+  }
+  function end(drop) {
+    cancelHold(); clearInterval(scrollTimer); scrollTimer = null;
+    if (!drag) { st = null; return; }
+    const d = drag; drag = null; st = null;
+    d.ghost.remove(); document.body.classList.remove('is-dragging');
+    justDragged = true; setTimeout(() => justDragged = false, 450);
+    const m = todayMeals[d.idx];
+    if (drop && d.zone && m && (m.meal || 'snack') !== d.zone) {
+      const old = m.meal || 'snack'; m.meal = d.zone; saveMeals(); refresh();
+      showToast(`„${m.name}“ → ${MEAL_LABELS[d.zone]}`, () => { m.meal = old; saveMeals(); refresh(); });
+    } else renderMeals();
+  }
+  function down(e) {
+    if (e.type === 'mousedown' && e.button !== 0) return;
+    const item = e.target.closest('.meal-item'); if (!item || e.target.closest('button') || e.target.closest('.meal-detail')) return;
+    const ed = item.querySelector('[data-edit]'); if (!ed) return;
+    const p = pt(e); st = { x: p.clientX, y: p.clientY, idx: +ed.dataset.edit, item };
+    cancelHold(); timer = setTimeout(() => { timer = null; if (st) startDrag(st.item, st.idx, st.x, st.y); }, HOLD);
+  }
+  function mv(e) {
+    const p = pt(e);
+    if (drag) { if (e.cancelable) e.preventDefault(); move(p.clientX, p.clientY); return; }
+    if (st && timer && (Math.abs(p.clientX - st.x) > SLOP || Math.abs(p.clientY - st.y) > SLOP)) { cancelHold(); st = null; }
+  }
+  list.addEventListener('touchstart', down, { passive: true });
+  list.addEventListener('touchmove', mv, { passive: false });
+  list.addEventListener('touchend', () => end(true));
+  list.addEventListener('touchcancel', () => end(false));
+  list.addEventListener('mousedown', down);
+  document.addEventListener('mousemove', e => { if (st || drag) mv(e); });
+  document.addEventListener('mouseup', () => { if (drag) end(true); else { cancelHold(); st = null; } });
+  list.addEventListener('contextmenu', e => { if (e.target.closest('.meal-item')) e.preventDefault(); });
+})();
 function foodForMeal(m) { return Object.assign({ id: m.id, name: m.name }, m.n); }
 
 function microState(totals) {
@@ -1667,7 +1769,9 @@ function damerauLevenshtein(a, b) {
   return matrix[b.length][a.length];
 }
 
-const DRINK_KEYWORDS = /^(vollmilch|milch|buttermilch|kefir|kuhmilch|hafermilch|sojamilch|mandelmilch|haferdrink)(\s|,|\(|$)|(saft|limonade|cola|bier|wein|sekt|schorle|smoothie|kaffee|espresso|tee|kakao|getränk|drink|bowle|likör|schnaps|wodka|whisky|sportgetränk|mineralwasser|wasser|eistee|kombucha)(?![a-zäöüß])|(^|[^a-zäöüß])(mate|latte|energy)(?![a-zäöüß])/i;
+const DRINK_RE = /^(vollmilch|milch|buttermilch|kefir|kuhmilch|hafermilch|sojamilch|mandelmilch|haferdrink)(\s|,|\(|$)|(saft|limonade|cola|bier|wein|sekt|schorle|smoothie|kaffee|espresso|tee|kakao|getränk|drink|bowle|likör|schnaps|wodka|whisky|sportgetränk|mineralwasser|wasser|eistee|kombucha)(?![a-zäöüß])|(^|[^a-zäöüß])(mate|latte|energy)(?![a-zäöüß])/i;
+const NOT_DRINK_RE = /(eigenem|eigenen)\s+saft|aufguss|thunfisch|sardine|makrele|hering/i;
+const DRINK_KEYWORDS = { test: n => DRINK_RE.test(n) && !NOT_DRINK_RE.test(n) };
 const DRINK_PORTIONS = [['1 Shot (20 ml)', 20], ['330 ml', 330], ['500 ml', 500]];
 
 const DIET_BLOCKLIST = {
