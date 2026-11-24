@@ -97,6 +97,9 @@
   .meal-detail .dh{font-size:10px;letter-spacing:.12em;color:var(--muted);margin:8px 0 2px;}
   .meal-detail .dr{display:flex;justify-content:space-between;padding:2px 0;}
   .meal-detail .dr.sub{padding-left:14px;color:var(--muted);}
+  .mvrow{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 6px;}
+  .meal-item .mvbtn{font-size:12px;font-family:var(--font-m);color:var(--ink);background:none;border:1px solid var(--ink);padding:8px 12px;min-height:36px;}
+  .meal-item .mvbtn.cur{opacity:.35;border-style:dashed;}
   .dragging-item{position:fixed;z-index:9999;pointer-events:none;opacity:.92;box-shadow:0 8px 24px rgba(0,0,0,.25);margin:0!important;}
   .meal-item.drag-src{opacity:.35;}
   body.is-dragging{user-select:none;-webkit-user-select:none;}
@@ -1440,10 +1443,14 @@ const openDetails = new Set();
 const detailKey = m => m.id + '@' + m.ts;
 function fmtV(x) { const a = Math.abs(x), d = a >= 100 ? 0 : a >= 10 ? 1 : 2; return String(+x.toFixed(d)).replace('.', ','); }
 const MACRO_ROWS = [['kcal', 'Energie', 'kcal', 0], ['fat', 'Fett', 'g', 0], ['satfat', 'davon ges. Fettsäuren', 'g', 1], ['carb', 'Kohlenhydrate', 'g', 0], ['sugar', 'davon Zucker', 'g', 1], ['fib', 'Ballaststoffe', 'g', 0], ['prot', 'Eiweiß', 'g', 0], ['salt', 'Salz', 'g', 0]];
-function detailHTML(m) {
+function moveBtns(m, idx) {
+  const cur = m.meal || 'snack';
+  return '<div class="dh">VERSCHIEBEN NACH</div><div class="mvrow">' + Object.entries(MEAL_LABELS).map(([k, l]) => `<button class="mvbtn${k === cur ? ' cur' : ''}" data-move="${idx}" data-to="${k}"${k === cur ? ' disabled' : ''}>${l.charAt(0) + l.slice(1).toLowerCase()}</button>`).join('') + '</div>';
+}
+function detailHTML(m, idx) {
   const f = m.grams / 100, n = m.n || {};
   const row = (label, k, unit, sub) => n[k] == null ? '' : `<div class="dr${sub ? ' sub' : ''}"><span>${esc(label)}</span><span>${fmtV(n[k] * f)} ${unit}</span></div>`;
-  let h = '<div class="meal-detail"><div class="dh">NÄHRWERTE</div>';
+  let h = '<div class="meal-detail">' + moveBtns(m, idx) + '<div class="dh">NÄHRWERTE</div>';
   MACRO_ROWS.forEach(([k, l, u, sub]) => h += row(l, k, u, sub));
   const ext = EXTENDED.map(x => row(x.label, x.k, x.unit, 1)).join('');
   if (ext) h += '<div class="dh">WEITERE STOFFE</div>' + ext;
@@ -1478,7 +1485,7 @@ function renderMeals() {
         </div>
         <button class="more" data-more="${i}" aria-label="Alle Werte anzeigen">${openDetails.has(detailKey(m)) ? '▴' : '▾'}</button>
         <button data-del="${i}" aria-label="Eintrag löschen">&times;</button>
-        ${openDetails.has(detailKey(m)) ? detailHTML(m) : ''}
+        ${openDetails.has(detailKey(m)) ? detailHTML(m, i) : ''}
       </div>`;
     });
     html += '</div>';
@@ -1488,8 +1495,13 @@ function renderMeals() {
 
 $('mealList').addEventListener('click', e => {
   if (justDragged) return;
-  const ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]'), mo = e.target.closest('[data-more]');
-  if (mo) { const m = todayMeals[+mo.dataset.more]; if (m) { const k = detailKey(m); openDetails.has(k) ? openDetails.delete(k) : openDetails.add(k); renderMeals(); } }
+  const ed = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]'), mo = e.target.closest('[data-more]'), mv = e.target.closest('[data-move]');
+  if (mv) {
+    const m = todayMeals[+mv.dataset.move], to = mv.dataset.to; if (!m || (m.meal || 'snack') === to) return;
+    const old = m.meal || 'snack'; m.meal = to; saveMeals(); refresh();
+    showToast(`„${m.name}“ → ${MEAL_LABELS[to]}`, () => { m.meal = old; saveMeals(); refresh(); });
+  }
+  else if (mo) { const m = todayMeals[+mo.dataset.more]; if (m) { const k = detailKey(m); openDetails.has(k) ? openDetails.delete(k) : openDetails.add(k); renderMeals(); } }
   else if (ed) { const i = +ed.dataset.edit; openAmount(foodForMeal(todayMeals[i]), i); }
   else if (del) {
     const i = +del.dataset.del;
@@ -1507,7 +1519,7 @@ $('mealList').addEventListener('click', e => {
     ]);
   }
 });
-/* Drag & Drop: lange drücken (0,5 s), dann auf eine andere Mahlzeit ziehen */
+/* Drag & Drop nur mit der Maus (PC): lange drücken (0,5 s), dann auf eine andere Mahlzeit ziehen */
 let justDragged = false;
 (function () {
   const list = $('mealList'), HOLD = 500, SLOP = 12;
@@ -1575,10 +1587,6 @@ let justDragged = false;
     if (drag) { if (e.cancelable) e.preventDefault(); move(p.clientX, p.clientY); return; }
     if (st && timer && (Math.abs(p.clientX - st.x) > SLOP || Math.abs(p.clientY - st.y) > SLOP)) { cancelHold(); st = null; }
   }
-  list.addEventListener('touchstart', down, { passive: true });
-  list.addEventListener('touchmove', mv, { passive: false });
-  list.addEventListener('touchend', () => end(true));
-  list.addEventListener('touchcancel', () => end(false));
   list.addEventListener('mousedown', down);
   document.addEventListener('mousemove', e => { if (st || drag) mv(e); });
   document.addEventListener('mouseup', () => { if (drag) end(true); else { cancelHold(); st = null; } });
