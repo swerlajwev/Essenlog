@@ -90,7 +90,8 @@
   .meal-item .txt{flex:1;cursor:pointer;min-width:0;}
   .meal-item .name{font-size:13px;font-weight:500;overflow-wrap:anywhere;}
   .meal-item .macros{font-size:12px;font-family:var(--font-m);color:var(--muted);}
-  .meal-item{flex-wrap:wrap;-webkit-touch-callout:none;}
+  .meal-item{flex-wrap:wrap;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;}
+  .meal-item *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
   .meal-item .more{font-size:16px;color:var(--muted);}
   .meal-detail{flex-basis:100%;border-top:1px dashed var(--line);margin-top:6px;padding-top:6px;font-size:12px;font-family:var(--font-m);}
   .meal-detail .dh{font-size:10px;letter-spacing:.12em;color:var(--muted);margin:8px 0 2px;}
@@ -1581,6 +1582,7 @@ let justDragged = false;
   list.addEventListener('mousedown', down);
   document.addEventListener('mousemove', e => { if (st || drag) mv(e); });
   document.addEventListener('mouseup', () => { if (drag) end(true); else { cancelHold(); st = null; } });
+  list.addEventListener('selectstart', e => { if (e.target.closest && e.target.closest('.meal-item')) e.preventDefault(); });
   list.addEventListener('contextmenu', e => { if (e.target.closest('.meal-item')) e.preventDefault(); });
 })();
 function foodForMeal(m) { return Object.assign({ id: m.id, name: m.name }, m.n); }
