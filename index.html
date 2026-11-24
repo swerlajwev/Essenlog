@@ -286,6 +286,9 @@
       </div>
     </div>
 
+    <div class="btn-group" style="width:100%;margin-bottom:6px;"><button class="btn" data-vm="day" onclick="setViewMode('day')" style="flex:1;">TAG</button><button class="btn btn-outline" data-vm="week" onclick="setViewMode('week')" style="flex:1;">WOCHE</button></div>
+    <div class="note hidden" id="weekInfo" style="margin-bottom:8px;"></div>
+
     <div class="ringcard">
       <div class="ring big">
         <svg width="160" height="160" viewBox="0 0 160 160"><circle cx="80" cy="80" r="68" fill="none" style="stroke:var(--track);" stroke-width="20"/><circle id="calRing" cx="80" cy="80" r="68" fill="none" style="stroke:var(--ink);" stroke-width="20" stroke-linecap="round" stroke-dasharray="0 427.26"/></svg>
@@ -295,7 +298,7 @@
     </div>
 
     <div class="frame col">
-      <span class="eyebrow">TAGESWERTE</span>
+      <span class="eyebrow" id="valuesTitle">TAGESWERTE</span>
       <div class="vlist">
       <div class="vrow"><div class="vh"><span>Eiweiß</span><b id="v-prot">0 / 0</b></div><div class="bar"><i id="b-prot" style="background:var(--green);"></i></div></div>
       <div class="vrow"><div class="vh"><span>Fett</span><b id="v-fat">0 / 0</b></div><div class="bar"><i id="b-fat" style="background:var(--amber);"></i></div></div>
@@ -305,7 +308,7 @@
       <div class="vrow"><div class="vh"><span>Ges. Fettsäuren (max)</span><b id="v-sat">0 / 0</b></div><div class="bar"><i id="b-sat" style="background:var(--pink);"></i></div></div>
       <div class="vrow"><div class="vh"><span>Salz (max)</span><b id="v-salt">0 / 0</b></div><div class="bar"><i id="b-salt" style="background:var(--muted);"></i></div></div>
       </div>
-      <div class="note">Fett- und KH-Ziel sind Richtwerte (30 % der Kalorien aus Fett, der Rest KH). Netto-KH heute: <b id="netCarbs">0 g</b></div>
+      <div class="note">Fett- und KH-Ziel sind Richtwerte (30 % der Kalorien aus Fett, der Rest KH). Netto-KH <span id="netLbl">heute</span>: <b id="netCarbs">0 g</b></div>
     </div>
 
     <div class="frame col">
@@ -329,6 +332,9 @@
 
   <div id="tab-history" class="hidden">
     <h1 class="display" style="margin-bottom:12px;">VERLAUF</h1>
+    <div class="btn-group" style="width:100%;margin-bottom:12px;"><button class="btn" data-hm="day" onclick="setHistMode('day')" style="flex:1;">TAG</button><button class="btn btn-outline" data-hm="week" onclick="setHistMode('week')" style="flex:1;">WOCHE</button></div>
+    <div id="histWeekWrap" class="hidden"></div>
+    <div id="histDayWrap">
     <div class="frame col">
       <span class="eyebrow">DURCHSCHNITT ALLER TAGE</span>
       <div class="stat-grid" id="histSummary"></div>
@@ -353,6 +359,7 @@
     <div class="frame col">
       <span class="eyebrow">HÄUFIGE LÜCKEN (ALLE TAGE)</span>
       <div id="histGaps"></div>
+    </div>
     </div>
   </div>
 
@@ -1370,6 +1377,31 @@ function dayTotals(meals) {
   return t;
 }
 
+/* ================= Woche ================= */
+let viewMode = (() => { try { return localStorage.getItem('el_ui_viewmode') === 'week' ? 'week' : 'day'; } catch (e) { return 'day'; } })();
+let histMode = (() => { try { return localStorage.getItem('el_ui_histmode') === 'week' ? 'week' : 'day'; } catch (e) { return 'day'; } })();
+let histWeekOff = 0;
+const addD = (ds, n) => { const d = new Date(ds + 'T12:00:00'); d.setDate(d.getDate() + n); return dstr(d); };
+function weekDates(off) {
+  const wd = (new Date(today + 'T12:00:00').getDay() + 6) % 7, mon = addD(today, -wd + off * 7);
+  return Array.from({ length: 7 }, (_, i) => addD(mon, i));
+}
+const mealsOf = ds => ds === today ? todayMeals : loadMeals(ds);
+function weekData(off) {
+  const dates = weekDates(off);
+  const days = dates.filter(ds => ds <= today).map(ds => ({ ds, meals: mealsOf(ds) }));
+  return { dates, days, all: days.flatMap(d => d.meals), withMeals: days.filter(d => d.meals.length) };
+}
+const viewMeals = () => viewMode === 'week' ? weekData(0).all : todayMeals;
+const microScale = () => viewMode === 'week' ? weekData(0).days.length : 1;
+function syncToggles() {
+  document.querySelectorAll('[data-vm]').forEach(b => b.classList.toggle('btn-outline', b.dataset.vm !== viewMode));
+  document.querySelectorAll('[data-hm]').forEach(b => b.classList.toggle('btn-outline', b.dataset.hm !== histMode));
+}
+function setViewMode(m) { viewMode = m; try { localStorage.setItem('el_ui_viewmode', m); } catch (e) {} refresh(); }
+function setHistMode(m) { histMode = m; try { localStorage.setItem('el_ui_histmode', m); } catch (e) {} renderHistory(); }
+function histWeekNav(d) { histWeekOff = Math.max(-104, Math.min(0, histWeekOff + d)); renderHistory(); }
+
 /* ================= Rendering ================= */
 function refresh() { calcAll(); renderMeals(); renderMicros(); renderExtended(); }
 
@@ -1397,23 +1429,34 @@ function calcAll() {
     gw.textContent = msg || (profile.goal === 'abnehmen' ? 'Zieh die Regler auf dein Zielgewicht und Zieldatum, dann berechnet die App das Kalorienziel.' : '');
   }
 
-  const t = dayTotals(todayMeals);
-  const calOver = t.kcal - T.cal;
-  const calPct = T.cal > 0 ? Math.min(100, t.kcal / T.cal * 100) : 0;
+  syncToggles();
+  const S = viewMode === 'week' ? 7 : 1, wk = S === 7 ? weekData(0) : null;
+  const t = dayTotals(viewMeals());
+  const Tv = S === 1 ? T : Object.assign({}, T, { cal: T.cal * S, prot: T.prot * S, fatT: T.fatT * S, carbT: T.carbT * S, fiber: T.fiber * S, sugarMax: T.sugarMax * S, satMax: T.satMax * S, saltMax: T.saltMax * S });
+  $('valuesTitle').textContent = S === 7 ? 'WOCHENWERTE' : 'TAGESWERTE';
+  $('netLbl').textContent = S === 7 ? 'diese Woche' : 'heute';
+  const wi = $('weekInfo');
+  wi.classList.toggle('hidden', S !== 7);
+  if (wk) wi.textContent = `Woche ${fmtDateLong(wk.dates[0]).slice(0, 5)} bis ${fmtDateLong(wk.dates[6]).slice(0, 5)}: Limit = Tagesziel × 7 (${T.cal} kcal × 7).`;
+  const calOver = t.kcal - Tv.cal;
+  const calPct = Tv.cal > 0 ? Math.min(100, t.kcal / Tv.cal * 100) : 0;
   $('calCurrent').textContent = Math.round(t.kcal);
-  $('calTarget').textContent = `von ${T.cal} kcal`;
-  $('calRemaining').textContent = calOver > 0 ? `${Math.round(calOver)} kcal drüber` : `${Math.round(T.cal - t.kcal)} kcal offen`;
-  $('calRemaining').style.color = calOver > T.cal * 0.05 ? 'var(--red)' : 'var(--muted)';
+  $('calTarget').textContent = `von ${Tv.cal} kcal`;
+  if (wk && calOver <= 0) {
+    const left = 7 - wk.dates.indexOf(today), rem = Tv.cal - t.kcal;
+    $('calRemaining').textContent = `${Math.round(rem)} kcal offen · Ø ${Math.round(rem / left)} pro Tag für ${left === 1 ? 'heute' : 'die restlichen ' + left + ' Tage (inkl. heute)'}`;
+  } else $('calRemaining').textContent = calOver > 0 ? `${Math.round(calOver)} kcal drüber` : `${Math.round(Tv.cal - t.kcal)} kcal offen`;
+  $('calRemaining').style.color = calOver > Tv.cal * 0.05 ? 'var(--red)' : 'var(--muted)';
   $('calRing').setAttribute('stroke-dasharray', `${(calPct * 427.26 / 100).toFixed(1)} 427.26`);
-  $('calRing').style.stroke = calOver > T.cal * 0.05 ? 'var(--red)' : 'var(--ink)';
+  $('calRing').style.stroke = calOver > Tv.cal * 0.05 ? 'var(--red)' : 'var(--ink)';
 
-  setVal('prot', t.prot, T.prot, 'g', false);
-  setVal('fat', t.fat, T.fatT, 'g', t.fat > T.fatT * 1.15);
-  setVal('carb', t.carb, T.carbT, 'g', t.carb > T.carbT * 1.15);
-  setVal('fib', t.fib, T.fiber, 'g', false);
-  setVal('sugar', t.sugar, T.sugarMax, 'g', t.sugar > T.sugarMax);
-  setVal('sat', t.satfat, T.satMax, 'g', t.satfat > T.satMax);
-  setVal('salt', t.salt, T.saltMax, 'g', t.salt > T.saltMax);
+  setVal('prot', t.prot, Tv.prot, 'g', false);
+  setVal('fat', t.fat, Tv.fatT, 'g', t.fat > Tv.fatT * 1.15);
+  setVal('carb', t.carb, Tv.carbT, 'g', t.carb > Tv.carbT * 1.15);
+  setVal('fib', t.fib, Tv.fiber, 'g', false);
+  setVal('sugar', t.sugar, Tv.sugarMax, 'g', t.sugar > Tv.sugarMax);
+  setVal('sat', t.satfat, Tv.satMax, 'g', t.satfat > Tv.satMax);
+  setVal('salt', t.salt, Tv.saltMax, 'g', t.salt > Tv.saltMax);
   $('netCarbs').textContent = fmt(Math.max(0, t.carb - t.fib)) + ' g';
 
   const progEl = $('prognosis');
@@ -1595,18 +1638,20 @@ let justDragged = false;
 })();
 function foodForMeal(m) { return Object.assign({ id: m.id, name: m.name }, m.n); }
 
-function microState(totals) {
+function microState(totals, scale) {
+  scale = scale || 1;
   return NUT.map(x => {
-    const s = totals.micro[x.k], ref = refValue(x);
+    const s = totals.micro[x.k], ref = refValue(x) * scale;
     if (s.has === 0) return { x, ref, nodata: true };
     const pct = s.sum / ref;
-    return { x, ref, s, pct, gap: pct < 0.5, over: !!(x.ul && s.sum > x.ul) };
+    return { x, ref, s, pct, gap: pct < 0.5, over: !!(x.ul && s.sum > x.ul * scale) };
   });
 }
 
 const microParts = {}, microManual = {};
 function renderMicros() {
-  const st = microState(dayTotals(todayMeals));
+  const mm = viewMeals(), msc = microScale();
+  const st = microState(dayTotals(mm), msc);
   const html = { vit: '', min: '', oth: '' }, nod = { vit: '', min: '', oth: '' }, gaps = { vit: 0, min: 0, oth: 0 }, has = { vit: 0, min: 0, oth: 0 };
   st.forEach(r => {
     const x = r.x;
@@ -1615,18 +1660,18 @@ function renderMicros() {
       return;
     }
     has[x.grp]++;
-    if (r.gap && todayMeals.length) gaps[x.grp]++;
+    if (r.gap && mm.length) gaps[x.grp]++;
     const color = r.over ? 'var(--red)' : r.gap ? 'var(--pink)' : 'var(--sky)';
     const star = r.s.missing ? ' *' : '';
     html[x.grp] += `<div><div class="micro-item"><span>${x.label}</span><div class="bar"><i style="width:${Math.min(100, r.pct * 100)}%;background:${color};"></i></div><b style="color:${r.over ? 'var(--red)' : 'inherit'}">${Math.round(r.pct * 100)}%${star}</b></div>
-      <div class="micro-sub">${fmt(r.s.sum)} / ${fmt(r.ref)} ${x.unit}${r.over ? ' · ÜBER OBERGRENZE (' + x.ul + ')' : ''}</div></div>`;
+      <div class="micro-sub">${fmt(r.s.sum)} / ${fmt(r.ref)} ${x.unit}${r.over ? ' · ÜBER OBERGRENZE (' + (x.ul * msc) + ')' : ''}</div></div>`;
   });
   const titles = { vit: 'VITAMINE', min: 'MINERALSTOFFE', oth: 'OMEGA-3' };
   ['vit', 'min', 'oth'].forEach(g => { microParts[g] = { title: titles[g], html: html[g] + nod[g], has: has[g], gaps: gaps[g] }; });
   const worst = st.filter(r => !r.nodata && r.gap).sort((a, b) => a.pct - b.pct).slice(0, 5);
   const over = st.filter(r => r.over);
   let txt = '';
-  if (todayMeals.length && worst.length) txt += `<b>Größte Lücken:</b> ${worst.map(r => `${r.x.label} ${Math.round(r.pct * 100)}%`).join(', ')}. `;
+  if (mm.length && worst.length) txt += `<b>Größte Lücken:</b> ${worst.map(r => `${r.x.label} ${Math.round(r.pct * 100)}%`).join(', ')}. `;
   if (over.length) txt += `<b style="color:var(--red)">Über Obergrenze:</b> ${over.map(r => r.x.label).join(', ')}.`;
   $('gapSummary').innerHTML = txt;
   layoutMicro();
@@ -1647,8 +1692,9 @@ $('microGroups').addEventListener('click', e => {
 });
 
 function renderExtended() {
-  const t = dayTotals(todayMeals);
-  const hasAny = k => todayMeals.some(m => m.n[k] != null);
+  const mm = viewMeals(), esc7 = microScale();
+  const t = dayTotals(mm);
+  const hasAny = k => mm.some(m => m.n[k] != null);
   const bcaa = (t.ile || 0) + (t.leu || 0) + (t.val || 0);
   const bcaaHtml = (hasAny('ile') || hasAny('leu') || hasAny('val'))
     ? `<div class="note" style="margin-top:6px;padding:6px 0;border-top:1px dashed var(--track);"><b>BCAA gesamt:</b> ${fmt(bcaa)} mg</div>` : '';
@@ -1664,10 +1710,10 @@ function renderExtended() {
     const has = hasAny(e.k);
     const display = has ? `${fmt(v)} ${e.unit}` : '–';
     let warn = '';
-    if (e.ul && v > e.ul) warn = ` <span style="color:var(--red);font-size:10px;">ÜBER UL</span>`;
-    const pct = e.ref ? Math.min(100, v / e.ref * 100) : 0;
-    const color = e.ul && v > e.ul ? 'var(--red)' : 'var(--sky)';
-    return { has, h: `<div class="micro-item"><span>${e.label}</span><div class="bar"><i style="width:${pct}%;background:${color};"></i></div><b style="color:${e.ul && v > e.ul ? 'var(--red)' : 'inherit'}">${display}${warn}</b></div>` };
+    if (e.ul && v > e.ul * esc7) warn = ` <span style="color:var(--red);font-size:10px;">ÜBER UL</span>`;
+    const pct = e.ref ? Math.min(100, v / (e.ref * esc7) * 100) : 0;
+    const color = e.ul && v > e.ul * esc7 ? 'var(--red)' : 'var(--sky)';
+    return { has, h: `<div class="micro-item"><span>${e.label}</span><div class="bar"><i style="width:${pct}%;background:${color};"></i></div><b style="color:${e.ul && v > e.ul * esc7 ? 'var(--red)' : 'inherit'}">${display}${warn}</b></div>` };
   });
   const html = items.filter(i => i.has).concat(items.filter(i => !i.has)).map(i => i.h).join('');
   microParts.ext = { title: 'WEITERE WERTE', html: html + bcaaHtml + ratioHtml, has: items.some(i => i.has) ? 1 : 0, gaps: 0 };
@@ -2290,7 +2336,48 @@ async function lookupBarcode(code) {
 }
 
 /* ================= Verlauf ================= */
+function renderWeekRecap() {
+  const wk = weekData(histWeekOff), dates = wk.dates, n = wk.withMeals.length;
+  const lbl = `${fmtDateLong(dates[0]).slice(0, 5)} – ${fmtDateLong(dates[6]).slice(0, 5)}.${dates[6].slice(0, 4)}`;
+  const nav = `<div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px;"><button class="btn btn-outline" onclick="histWeekNav(-1)">‹</button><b>${histWeekOff === 0 ? 'DIESE WOCHE' : lbl}</b><button class="btn btn-outline" onclick="histWeekNav(1)" ${histWeekOff >= 0 ? 'disabled style="opacity:.3"' : ''}>›</button></div>`;
+  let h = nav + (histWeekOff === 0 ? `<div class="note" style="margin-bottom:8px;">${lbl}</div>` : '');
+  if (!n) { $('histWeekWrap').innerHTML = h + '<div class="frame col"><div class="note">Keine Einträge in dieser Woche.</div></div>'; return; }
+  const T = getTargets(todaySteps());
+  const per = wk.withMeals.map(d => ({ ds: d.ds, t: dayTotals(d.meals) }));
+  const avg = k => per.reduce((a, d) => a + d.t[k], 0) / n;
+  const row = (l, v, tg, u) => `<div class="vrow" style="display:flex;justify-content:space-between;padding:4px 0;"><span>${l}</span><b>Ø ${fmt(v)} ${u}</b><span class="note">Ziel ${fmt(tg)}</span></div>`;
+  h += `<div class="frame col"><span class="eyebrow">Ø PRO TAG (${n} ${n === 1 ? 'Tag' : 'Tage'} mit Einträgen)</span>` +
+    row('Kalorien', avg('kcal'), T.cal, 'kcal') + row('Protein', avg('prot'), T.prot, 'g') + row('Kohlenhydrate', avg('carb'), T.carbT, 'g') + row('Fett', avg('fat'), T.fatT, 'g') + '</div>';
+  // Top 5
+  const foods = {};
+  wk.all.forEach(m => {
+    const k = (m.name || '').trim().toLowerCase(), f = foods[k] || (foods[k] = { name: m.name, g: 0, kcal: 0, prot: 0 });
+    const g = Number(m.grams) || 0; f.g += g;
+    f.kcal += (m.n.kcal || 0) * g / 100; f.prot += (m.n.prot || 0) * g / 100;
+  });
+  const fl = Object.values(foods);
+  const top = (key, u) => fl.slice().sort((a, b) => b[key] - a[key]).filter(f => f[key] > 0).slice(0, 5)
+    .map((f, i) => `<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;"><span>${i + 1}. ${esc(f.name)}</span><span><b>${fmt(f[key])} ${u}</b> <span class="note">· ${fmt(f.g)} g</span></span></div>`).join('') || '<div class="note">–</div>';
+  h += `<div class="frame col"><span class="eyebrow">TOP 5 NACH KALORIEN</span>${top('kcal', 'kcal')}</div>`;
+  h += `<div class="frame col"><span class="eyebrow">TOP 5 NACH PROTEIN</span>${top('prot', 'g')}</div>`;
+  // bester/schlechtester Tag
+  const dev = per.map(d => ({ ds: d.ds, k: d.t.kcal, d: Math.abs(d.t.kcal - T.cal) })).sort((a, b) => a.d - b.d);
+  const dl = x => new Date(x.ds + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' });
+  const pd = per.filter(d => d.t.prot >= T.prot).length;
+  h += `<div class="frame col"><span class="eyebrow">BESTER & SCHLECHTESTER TAG</span>
+    <div>Am nächsten am Ziel: <b>${dl(dev[0])}</b> <span class="note">(${fmt(dev[0].k)} kcal)</span></div>` +
+    (dev.length > 1 ? `<div>Am weitesten weg: <b>${dl(dev[dev.length - 1])}</b> <span class="note">(${fmt(dev[dev.length - 1].k)} kcal)</span></div>` : '') +
+    `<div style="margin-top:6px;">Proteinziel erreicht: <b>${pd} von ${n} Tagen</b></div></div>`;
+  // Lücken (Wochenebene: Summe vs. Referenz × Anzahl Tage mit Einträgen)
+  const st = microState(dayTotals(wk.all), n).filter(r => !r.nodata).sort((a, b) => a.pct - b.pct).slice(0, 5);
+  h += `<div class="frame col"><span class="eyebrow">GRÖSSTE LÜCKEN DER WOCHE</span>` + (st.map(r => `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span>${esc(r.x.label)}</span><b style="color:${r.pct < 0.5 ? 'var(--red)' : 'inherit'}">${Math.round(r.pct * 100)} %</b></div>`).join('') || '<div class="note">Keine Daten.</div>') + '</div>';
+  $('histWeekWrap').innerHTML = h;
+}
 function renderHistory() {
+  syncToggles();
+  $('histWeekWrap').classList.toggle('hidden', histMode !== 'week');
+  $('histDayWrap').classList.toggle('hidden', histMode === 'week');
+  if (histMode === 'week') { renderWeekRecap(); return; }
   const days = [];
   for (let i = 0; i < localStorage.length; i++) {
     const m = /^essenlog_meals_(\d{4}-\d{2}-\d{2})$/.exec(localStorage.key(i) || '');
