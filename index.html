@@ -279,7 +279,7 @@
   <div id="tab-home">
     <div class="row topbar" style="align-items:flex-end;flex-wrap:wrap;gap:8px;">
       <div><div class="eyebrow" id="todayDate">HEUTE</div><h1 class="display">ÜBERSICHT</h1></div>
-      <label id="suppChk" style="display:flex;align-items:center;gap:8px;margin-left:auto;cursor:pointer;font-size:13px;font-weight:600;user-select:none;"><input type="checkbox" id="suppAshwa" onchange="toggleAshwa(this.checked)" style="width:22px;height:22px;accent-color:var(--ink);margin:0;"><span>Ashwagandha<br><span class="note" style="font-weight:400;">früh + abends</span></span></label>
+      <div id="checkList" style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-left:auto;"></div>
       <div class="btn-group" style="width:100%;">
         <button class="btn btn-outline" id="stepBtn" style="padding:0 10px;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="openSteps()" aria-label="Schritte eintragen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg><span id="stepBtnTxt" class="mono" style="font-size:11px;"></span></button>
         <button class="btn btn-outline" style="padding: 0 12px; display: flex; align-items: center; justify-content: center;" onclick="startScanner()" aria-label="Barcode scannen"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><line x1="7" y1="12" x2="17" y2="12"></line></svg></button>
@@ -446,6 +446,13 @@
           <div class="input-group"><label>Eiweiß pro kg Körpergewicht (g)</label><input type="number" step="0.1" inputmode="decimal" id="pProtPerKg" placeholder="leer = Standard" onchange="saveProfile()"></div>
         </div>
       </details>
+    </div>
+
+    <h2 class="sect">Abhaken</h2>
+    <div class="frame col">
+      <div class="note">Was du regelmäßig nimmst (z. B. Supplements), erscheint oben auf der Übersicht zum Abhaken. Ein Haken trägt es für heute ein, Haken weg entfernt es wieder.</div>
+      <div id="checkEdit"></div>
+      <button class="btn btn-outline btn-sm" onclick="addCheckItem()" style="width:100%;">+ ZUM ABHAKEN HINZUFÜGEN</button>
     </div>
 
     <h2 class="sect">Trainingslog</h2>
@@ -1093,8 +1100,10 @@ $m('authCancel').onclick = closeEmail;
 $m('authLogin').onclick = () => emailAuth(false);
 $m('authRegister').onclick = () => emailAuth(true);
 
+const OWNER_EMAIL = 'swerlajwev@gmail.com';
 onAuthStateChanged(auth, user => {
   renderStatus(user);
+  if (user && (user.email || '').toLowerCase() === OWNER_EMAIL && window.ensureOwnerChecks) window.ensureOwnerChecks();
   if (user) initialSync(user);
 });
 </script>
@@ -1617,13 +1626,46 @@ function setHistMode(m) { histMode = m; try { localStorage.setItem('el_ui_histmo
 function histWeekNav(d) { histWeekOff = Math.max(-104, Math.min(0, histWeekOff + d)); renderHistory(); }
 
 /* ================= Rendering ================= */
-function toggleAshwa(on) {
-  const has = todayMeals.some(m => m.id === 'supp_ashwagandha');
-  if (on && !has) { const e = suppEntry(SUPP_DEFS[0], today, '08', 'breakfast'); e.ts = Date.now(); todayMeals.push(e); }
-  if (!on && has) todayMeals = todayMeals.filter(m => m.id !== 'supp_ashwagandha');
+/* ================= Abhaken =================
+   Liste pro Konto (liegt im Profil und wird mit synchronisiert). Standard: leer. */
+function getChecks() { return Array.isArray(profile.checks) ? profile.checks : []; }
+function checkEntries(it) { return todayMeals.filter(m => m.chk === it.id || (it.legacy && m.id === it.foodId)); }
+function renderChecks() {
+  const items = getChecks(), box = $('checkList'), ed = $('checkEdit');
+  if (box) box.innerHTML = items.map(it => `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;user-select:none;"><input type="checkbox" ${checkEntries(it).length ? 'checked' : ''} onchange="toggleCheck('${it.id}', this.checked)" style="width:22px;height:22px;accent-color:var(--ink);margin:0;"><span>${esc(it.name)}${it.note ? `<br><span class="note" style="font-weight:400;">${esc(it.note)}</span>` : ''}</span></label>`).join('');
+  if (ed) ed.innerHTML = items.length ? items.map(it => `<div class="meal-item"><div class="txt"><div class="name">${esc(it.name)}</div><div class="macros">${fmt(it.grams)} ${unitOf(it.foodName || it.name)}${it.note ? ' · ' + esc(it.note) : ''}</div></div><button onclick="removeCheckItem('${it.id}')" aria-label="Entfernen">&times;</button></div>`).join('') : '<div class="note">Noch nichts zum Abhaken.</div>';
+}
+function toggleCheck(id, on) {
+  const it = getChecks().find(x => x.id === id); if (!it) return;
+  const has = checkEntries(it).length > 0;
+  if (on && !has) todayMeals.push({ id: it.foodId, name: it.foodName || it.name, grams: it.grams, n: Object.assign({}, it.n), meal: guessMeal(), ts: Date.now(), portion: it.portion || null, chk: it.id });
+  if (!on && has) todayMeals = todayMeals.filter(m => !(m.chk === it.id || (it.legacy && m.id === it.foodId)));
   saveMeals(); refresh();
 }
-function refresh() { const c = $('suppAshwa'); if (c) c.checked = todayMeals.some(m => m.id === 'supp_ashwagandha'); calcAll(); renderMeals(); renderMicros(); renderExtended(); }
+function addCheckItem() { pickMode = { type: 'check' }; openModal(); }
+function saveCheckItem(food, grams) {
+  const n = {}; ALLK.forEach(k => n[k] = food[k] == null ? null : food[k]);
+  profile.checks = getChecks().concat({ id: 'chk_' + Date.now().toString(36), name: food.name, foodId: food.id, foodName: food.name, grams, n, portion: food.supp ? food.portionLabel : null });
+  jset('essenlog_profile', profile);
+  renderChecks();
+  showToast('Zum Abhaken hinzugefügt');
+}
+function removeCheckItem(id) {
+  const it = getChecks().find(x => x.id === id); if (!it) return;
+  showDialog('Entfernen', `„${it.name}“ nicht mehr zum Abhaken anzeigen? Schon eingetragene Tage bleiben, wie sie sind.`, [
+    { text: 'Abbrechen' },
+    { text: 'Entfernen', primary: true, action: () => { profile.checks = getChecks().filter(x => x.id !== id); jset('essenlog_profile', profile); renderChecks(); } }
+  ]);
+}
+/* Nur für das Konto des App-Besitzers: Ashwagandha ist von Anfang an in der Liste */
+window.ensureOwnerChecks = () => {
+  if (Array.isArray(profile.checks)) return;
+  const d = SUPP_DEFS[0], e = suppEntry(d, today, '08', 'breakfast');
+  profile.checks = [{ id: 'chk_ashwa', name: 'Ashwagandha', note: 'früh + abends', foodId: d.id, foodName: d.name, grams: d.portionG, n: e.n, portion: d.ptxt, legacy: true }];
+  jset('essenlog_profile', profile);
+  renderChecks();
+};
+function refresh() { renderChecks(); calcAll(); renderMeals(); renderMicros(); renderExtended(); }
 
 function setVal(key, cur, tgt, unit, over) {
   const bar = $('b-' + key), val = $('v-' + key);
@@ -1957,7 +1999,8 @@ function saveProfile() {
     targetDate: profile.targetDate || null,
     trackSteps: $('pTrackSteps').value === '1',
     muscle: Number($('pMuscle').value) > 0 ? Number($('pMuscle').value) : null,
-    tlTrain: $('pTlTrain').value !== '0'
+    tlTrain: $('pTlTrain').value !== '0',
+    checks: profile.checks
   };
   jset('essenlog_profile', profile);
   refresh();
@@ -2103,7 +2146,7 @@ function searchFood(query) {
   const rawQuery = query.trim().toLowerCase();
 
   if (pickMode && !rawQuery) {
-    box.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Suche ein ähnliches Lebensmittel.</div>';
+    box.innerHTML = `<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">${pickMode.type === 'check' ? 'Suche, was du zum Abhaken hinzufügen willst (z. B. ein Supplement).' : 'Suche ein ähnliches Lebensmittel.'}</div>`;
     return;
   }
   if (!rawQuery) {
@@ -2143,7 +2186,7 @@ function searchFood(query) {
   let scored = [];
 
   allData.forEach(item => {
-    if (pickMode && !blsSet.has(item.id) && !customFoods.find(f => f.id === item.id)) return;
+    if (pickMode && pickMode.type !== 'check' && !blsSet.has(item.id) && !customFoods.find(f => f.id === item.id)) return;
     const nn = normInfo(item), itemName = nn.n;
     let score = 0, matchCount = 0;
     for (let w of normWords) {
@@ -2170,7 +2213,7 @@ function searchFood(query) {
     if (mainWords.length > 0) {
       let partial = [];
       allData.forEach(item => {
-        if (pickMode && !blsSet.has(item.id) && !customFoods.find(f => f.id === item.id)) return;
+        if (pickMode && pickMode.type !== 'check' && !blsSet.has(item.id) && !customFoods.find(f => f.id === item.id)) return;
         const nn = normInfo(item), itemName = nn.n;
         let matchCount = 0;
         mainWords.forEach(w => { if (itemName.includes(w)) matchCount++; });
@@ -2195,7 +2238,10 @@ $('searchResults').addEventListener('click', e => {
   const f = lastResults[+it.dataset.i]; if (!f) return;
   if (pickMode) {
     const pm = pickMode; closeModal();
-    if (pm.type === 'recipe') {
+    if (pm.type === 'check') {
+      openAmount(f, null, (food, grams) => saveCheckItem(food, grams));
+      $('amtOk').textContent = 'ZUM ABHAKEN HINZUFÜGEN';
+    } else if (pm.type === 'recipe') {
       openAmount(f, null, (food, grams) => {
         const n = {};
         ALLK.forEach(k => n[k] = food[k] == null ? null : food[k]);
@@ -2610,8 +2656,6 @@ function renderHistory() {
     if (m) days.push(m[1]);
   }
   Object.keys(stepsLog).forEach(d => { if (Number(stepsLog[d]) > 0 && !days.includes(d)) days.push(d); });
-  const tlSrc = tlTrainActive() ? tlSource() : null;
-  if (tlSrc) tlSrc.sessions.forEach(s => { if (s && s.date) { const d = tlDs(s.date); if (d <= today && !days.includes(d)) days.push(d); } });
   if (!days.includes(today)) days.push(today);
   days.sort().reverse();
 
@@ -2623,7 +2667,7 @@ function renderHistory() {
     const meals = ds === today ? todayMeals : loadMeals(ds);
     const st = Number(stepsLog[ds]) || 0;
     const T = getTargets(st > 0 ? st : null, ds);
-    if (!meals.length && !(st > 0) && !T.training) return;
+    if (!meals.length && !(st > 0)) return;
     const d = new Date(ds + 'T12:00:00'), t = dayTotals(meals);
     if (st > 0) { sumS += st; cntS++; }
     if (meals.length) { sumK += t.kcal; sumP += t.prot; cnt++; gapDays++; }
@@ -2633,7 +2677,7 @@ function renderHistory() {
     const label = ds === today ? 'HEUTE' : ds === yesterdayStr ? 'GESTERN' : d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }).toUpperCase();
     const kcalColor = t.kcal > T.cal * 1.05 ? 'var(--red)' : (t.kcal >= T.cal * 0.9 ? 'var(--green)' : 'var(--ink)');
     rows += `<div class="hist-day"><div class="dayrow" onclick="toggleDayEdit('${ds}')">
-      <div class="dr-head"><b>${label}</b><span>${meals.length ? '' : st > 0 ? 'nur Schritte' : 'nur Training'}</span></div>
+      <div class="dr-head"><b>${label}</b><span>${meals.length ? '' : 'nur Schritte'}</span></div>
       ${line('Kalorien', t.kcal, T.cal, 'kcal', kcalColor)}
       ${line('Eiweiß', t.prot, T.prot, 'g', 'var(--green)')}
       <div class="dr-line"><span>Schritte</span><div class="bar"><i style="width:${Math.min(100, st / 10000 * 100)}%;background:var(--sky);"></i></div><b>${st > 0 ? st.toLocaleString('de-DE') : '–'}</b></div>
@@ -2694,15 +2738,50 @@ function renderHistory() {
 function dayButtons(ds) {
   return `<div class="btn-group" style="margin-top:8px;"><button class="btn btn-outline btn-sm" style="flex:1;" onclick="event.stopPropagation(); openModal('${ds}')">+ EINTRAG</button><button class="btn btn-outline btn-sm" style="flex:1;" onclick="event.stopPropagation(); openSteps('${ds}')">SCHRITTE</button></div>`;
 }
+/* Alle Werte eines Tages (wie die Übersicht, nur für diesen Tag) */
+function dayDetailHtml(ds, meals) {
+  const st = Number(stepsLog[ds]) || 0, T = getTargets(st > 0 ? st : null, ds), t = dayTotals(meals);
+  const bar = (l, cur, tgt, u, isMax) => {
+    const over = isMax ? cur > tgt : false;
+    return `<div class="dr-line"><span>${l}</span><div class="bar"><i style="width:${tgt > 0 ? Math.min(100, cur / tgt * 100) : 0}%;background:${over ? 'var(--red)' : 'var(--sky)'};"></i></div><b style="${over ? 'color:var(--red)' : ''}">${fmt(cur)} / ${fmt(tgt)} ${u}</b></div>`;
+  };
+  const kv = (l, v) => `<div class="row mono" style="font-size:12px;justify-content:space-between;padding:2px 0;"><span>${l}</span><b>${v}</b></div>`;
+  let h = '<div class="col" style="gap:4px;padding:8px 0;border-bottom:1px dashed var(--track);margin-bottom:6px;">';
+  h += '<span class="eyebrow">TAGESWERTE</span>';
+  h += bar('Kalorien', t.kcal, T.cal, 'kcal') + bar('Eiweiß', t.prot, T.prot, 'g') + bar('Fett', t.fat, T.fatT, 'g') + bar('Kohlenhydr.', t.carb, T.carbT, 'g') + bar('Ballaststoffe', t.fib, T.fiber, 'g');
+  h += bar('Zucker (max)', t.sugar, T.sugarMax, 'g', true) + bar('Ges. Fetts. (max)', t.satfat, T.satMax, 'g', true) + bar('Salz (max)', t.salt, T.saltMax, 'g', true);
+  h += kv('Netto-KH', fmt(Math.max(0, t.carb - t.fib)) + ' g');
+  h += '<span class="eyebrow" style="margin-top:6px;">BEDARF & AKTIVITÄT</span>';
+  h += kv('Grundumsatz', Math.round(T.bmr) + ' kcal') + kv('Gesamtbedarf', T.tdee + ' kcal') + kv('Kalorienziel', T.cal + ' kcal');
+  h += kv('Schritte', st > 0 ? st.toLocaleString('de-DE') : '–');
+  if (T.training) h += kv('Training', esc(tlDayText(T.training)));
+  if (Number(weights[ds]) > 0) h += kv('Gewicht', String(weights[ds]).replace('.', ',') + ' kg');
+  if (meals.length) {
+    const ms = microState(t), groups = { vit: 'VITAMINE', min: 'MINERALSTOFFE', oth: 'OMEGA-3' };
+    Object.keys(groups).forEach(g => {
+      const rows = ms.filter(r => r.x.grp === g && !r.nodata);
+      if (!rows.length) return;
+      h += `<span class="eyebrow" style="margin-top:6px;">${groups[g]}</span>` + rows.map(r => {
+        const color = r.over ? 'var(--red)' : r.gap ? 'var(--pink)' : 'var(--sky)';
+        return `<div class="dr-line"><span>${r.x.label}</span><div class="bar"><i style="width:${Math.min(100, r.pct * 100)}%;background:${color};"></i></div><b>${Math.round(r.pct * 100)} % <span class="note">${fmt(r.s.sum)} ${r.x.unit}</span></b></div>`;
+      }).join('');
+    });
+    const ext = EXTENDED.filter(e => meals.some(m => m.n[e.k] != null));
+    if (ext.length) h += '<span class="eyebrow" style="margin-top:6px;">WEITERE WERTE</span>' + ext.map(e => kv(e.label, fmt(t[e.k] || 0) + ' ' + e.unit)).join('');
+    const nod = ms.filter(r => r.nodata).map(r => r.x.label);
+    if (nod.length) h += `<div class="note" style="margin-top:4px;">Keine Daten: ${nod.join(', ')}</div>`;
+  }
+  return h + '<span class="eyebrow" style="margin-top:6px;">EINTRÄGE</span></div>';
+}
 function toggleDayEdit(ds) {
   const el = $('hist-edit-' + ds);
   if (!el) return;
   if (!el.classList.contains('hidden')) { el.classList.add('hidden'); return; }
   const meals = ds === today ? todayMeals : loadMeals(ds);
   if (!meals.length) {
-    el.innerHTML = '<div class="note" style="padding:6px;">Keine Einträge.</div>' + dayButtons(ds);
+    el.innerHTML = dayDetailHtml(ds, meals) + '<div class="note" style="padding:6px;">Keine Einträge.</div>' + dayButtons(ds);
   } else {
-    el.innerHTML = meals.map((m, i) => {
+    el.innerHTML = dayDetailHtml(ds, meals) + meals.map((m, i) => {
       const f = m.grams / 100;
       const time = m.ts ? new Date(m.ts).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
       return `<div class="meal-item">
@@ -3031,57 +3110,7 @@ function suppEntry(d, ds, hour, meal) {
   Object.keys(d.v).forEach(k => n[k] = Math.round(d.v[k] * 100 / d.portionG * 1e4) / 1e4);
   return { id: d.id, name: d.name, grams: d.portionG, n, meal, ts: new Date(ds + 'T' + hour + ':00:00').getTime(), portion: d.ptxt };
 }
-function seedAshwaAll() {
-  try {
-    if (localStorage.getItem('essenlog_migr_supp2')) return;
-    let cnt = 0;
-    for (let i = 0; i < localStorage.length; i++) {
-      const m = /^essenlog_meals_(\d{4}-\d{2}-\d{2})$/.exec(localStorage.key(i) || '');
-      if (!m || m[1] >= today) continue;
-      const k = localStorage.key(i), arr = jget(k, []) || [];
-      if (arr.length && !arr.some(e => e.id === 'supp_ashwagandha')) { arr.push(suppEntry(SUPP_DEFS[0], m[1], '08', 'breakfast')); jset(k, arr); cnt++; }
-    }
-    localStorage.setItem('essenlog_migr_supp2', '1');
-    if (cnt) setTimeout(() => showToast(`Ashwagandha bei ${cnt} weiteren Tagen nachgetragen`), 800);
-  } catch (e) { console.warn('Ashwa-Seed fehlgeschlagen', e); }
-}
-function seedSupplements() {
-  try {
-    if (localStorage.getItem('essenlog_migr_supp1')) return;
-    let foodsAdded = false;
-    SUPP_DEFS.forEach(d => {
-      if (customFoods.some(f => f.id === d.id)) return;
-      const f = { id: d.id, name: d.name, kcal: 0, prot: 0, fat: 0, carb: 0, manual: true, supp: true, servingGrams: d.portionG, portionLabel: d.label };
-      Object.keys(d.v).forEach(k => f[k] = Math.round(d.v[k] * 100 / d.portionG * 1e4) / 1e4);
-      customFoods = customFoods.concat(f); foodsAdded = true;
-    });
-    if (foodsAdded) { jset('essenlog_custom_foods', customFoods); buildIndex(); }
-    const YESTERDAY = '2026-11-22';
-    const days = new Set([YESTERDAY]);
-    for (let i = 0; i < localStorage.length; i++) {
-      const m = /^essenlog_meals_(\d{4}-\d{2}-\d{2})$/.exec(localStorage.key(i) || '');
-      if (m && m[1] < today && (jget(localStorage.key(i), []) || []).length) days.add(m[1]);
-    }
-    let cnt = 0;
-    days.forEach(ds => {
-      if (ds >= today) return;
-      const arr = jget('essenlog_meals_' + ds, []) || [];
-      let changed = false;
-      if (!arr.some(e => e.id === 'supp_ashwagandha')) { arr.push(suppEntry(SUPP_DEFS[0], ds, '08', 'breakfast')); changed = true; cnt++; }
-      if (ds === YESTERDAY && !arr.some(e => e.id === 'supp_pre_apfel')) { arr.push(suppEntry(SUPP_DEFS[2], ds, '16', 'snack')); changed = true; }
-      if (changed) jset('essenlog_meals_' + ds, arr);
-    });
-    SUPP_DEFS.forEach(d => { if (lastGrams[d.id] == null) lastGrams[d.id] = d.portionG; });
-    jset('essenlog_lastgrams', lastGrams);
-    recentIds = SUPP_DEFS.map(d => d.id).concat(recentIds.filter(i => !SUPP_DEFS.some(d => d.id === i))).slice(0, 12);
-    jset('essenlog_recent', recentIds);
-    localStorage.setItem('essenlog_migr_supp1', '1');
-    if (cnt) setTimeout(() => showToast(`Ashwagandha bei ${cnt} Tagen nachgetragen`), 800);
-  } catch (e) { console.warn('Supplements-Seed fehlgeschlagen', e); }
-}
 function init() {
-  seedSupplements();
-  seedAshwaAll();
   applyTheme();
   $('pWeight').value = profile.weight || '';
   $('pFat').value = profile.fat || '';
