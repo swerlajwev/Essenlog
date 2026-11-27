@@ -296,6 +296,7 @@
         <div class="rc"><span class="eyebrow">KALORIEN</span><div class="big-num" id="calCurrent">0</div><div class="mono" style="font-size:11px;color:var(--muted);" id="calTarget">von 0 kcal</div></div>
       </div>
       <div class="mono" style="font-size:12px;color:var(--muted);" id="calRemaining">0 kcal offen</div>
+      <div class="mono hidden" style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px;" id="tlToday"></div>
     </div>
 
     <div class="frame col">
@@ -395,7 +396,9 @@
         <div class="input-group"><label>Geschlecht</label>
           <select id="pGender" onchange="saveProfile()"><option value="m">Männlich</option><option value="w">Weiblich</option></select>
         </div>
+        <div class="input-group"><label>Muskelmasse (kg)</label><input type="number" inputmode="decimal" step="0.1" id="pMuscle" onchange="saveProfile()"></div>
       </div>
+      <div class="note hidden" id="tlScanInfo"></div>
       <button class="btn btn-outline btn-sm" onclick="logWeight()" style="width:100%;">HEUTE WIEGEN</button>
       <div class="note">Speichert das Gewicht von heute für die Kurve im Verlauf.</div>
     </div>
@@ -434,6 +437,7 @@
         <div class="stat"><span class="eyebrow">EIWEISSZIEL</span><b id="calcTargetProt">0 g</b></div>
       </div>
       <div class="note" id="goalWarn" style="margin-top:8px;"></div>
+      <div class="note hidden" id="tlTargetInfo"></div>
       <details class="fold" id="ovDetails">
         <summary>Ziele selbst festlegen (optional)</summary>
         <div class="fold-body">
@@ -442,6 +446,19 @@
           <div class="input-group"><label>Eiweiß pro kg Körpergewicht (g)</label><input type="number" step="0.1" inputmode="decimal" id="pProtPerKg" placeholder="leer = Standard" onchange="saveProfile()"></div>
         </div>
       </details>
+    </div>
+
+    <h2 class="sect">Trainingslog</h2>
+    <div class="frame col">
+      <div class="note" id="tlInfo">Noch keine Daten aus dem Trainingslog.</div>
+      <div class="input-group" style="margin-bottom:0;"><label>Training ins Kalorienziel einrechnen</label>
+        <select id="pTlTrain" onchange="saveProfile()"><option value="1">Ja</option><option value="0">Nein</option></select>
+        <div class="note">Ja: An Tagen mit Gym oder Cardio im Trainingslog steigt dein Kalorienziel um die geschätzten Trainingskalorien. Schritte zählen wie bisher. Nur wenn „Schritte tracken“ auf Nein steht, rechnet die App ohne Schritte-Eintrag mit einem ruhigen Grundtag statt mit einem Durchschnittstag, damit Sport nicht doppelt zählt.</div>
+      </div>
+      <span class="eyebrow">VERBINDUNG ÜBER KONTO</span>
+      <div id="tlAuth" class="col"><div class="note">Wird geladen… (Internet nötig)</div></div>
+      <div class="note">Android und PC: Essenlog liest die Trainingslog-Daten direkt vom Gerät, ganz ohne Anmeldung. iPhone (App am Home-Bildschirm): Hier mit demselben Konto anmelden, das du im Trainingslog benutzt.</div>
+      <button class="btn btn-outline btn-sm" onclick="location.href='../Trainingslog/'" style="width:100%;">TRAININGSLOG ÖFFNEN</button>
     </div>
 
     <h2 class="sect">App</h2>
@@ -735,7 +752,7 @@
 /* ================= Firebase Cloud-Sync ================= */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initializeFirestore, getFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, getDoc, getDocs, collection } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDHQUXOFu7KBzlbC4MwlmNGLFQ4afhTDJ8",
@@ -981,7 +998,7 @@ function renderStatus(user) {
       <button type="button" class="btn btn-sm" id="loginBtn">EINLOGGEN</button>`;
     $m('loginBtn').onclick = () => window.showDialog('Einloggen', 'Mit welcher Methode?', [
       { text: 'Abbrechen' },
-      { text: 'E-Mail', action: openEmail },
+      { text: 'E-Mail', action: () => openEmail('essenlog') },
       { text: 'Google', primary: true, action: googleLogin }
     ]);
   }
@@ -997,18 +1014,81 @@ async function googleLogin() {
     }
   }
 }
-function openEmail() { $m('authErr').textContent = ''; $m('emailOverlay').classList.remove('hidden'); $m('authEmail').focus(); }
+let emailTarget = 'essenlog';
+function openEmail(target) {
+  emailTarget = target === 'trainingslog' ? 'trainingslog' : 'essenlog';
+  $m('authErr').textContent = '';
+  const h = $m('emailBox').querySelector('h3'); if (h) h.textContent = emailTarget === 'trainingslog' ? 'TRAININGSLOG-LOGIN' : 'E-MAIL LOGIN';
+  $m('authRegister').classList.toggle('hidden', emailTarget === 'trainingslog');
+  $m('emailOverlay').classList.remove('hidden'); $m('authEmail').focus();
+}
 function closeEmail() { $m('emailOverlay').classList.add('hidden'); $m('authPw').value = ''; }
 async function emailAuth(register) {
   const email = $m('authEmail').value.trim(), pw = $m('authPw').value;
   $m('authErr').textContent = '';
   if (!email || !pw) { $m('authErr').textContent = 'E-Mail und Passwort eingeben.'; return; }
   try {
-    if (register) await createUserWithEmailAndPassword(auth, email, pw);
+    if (emailTarget === 'trainingslog') await signInWithEmailAndPassword(tlAuth, email, pw);
+    else if (register) await createUserWithEmailAndPassword(auth, email, pw);
     else await signInWithEmailAndPassword(auth, email, pw);
     closeEmail();
   } catch (e) { $m('authErr').textContent = authMsg(e); }
 }
+
+/* ---- Trainingslog-Konto (zweites Firebase-Projekt, nur lesen) ---- */
+const tlApp = initializeApp({
+  apiKey: "AIzaSyBhRCi36Ac-1AO6UcfF1NVsTY9YXtwIwdE",
+  authDomain: "trainingslog-102.firebaseapp.com",
+  projectId: "trainingslog-102",
+  storageBucket: "trainingslog-102.firebasestorage.app",
+  messagingSenderId: "696947842581",
+  appId: "1:696947842581:web:d6f43f57a62d8fcfae381c"
+}, 'trainingslog');
+const tlAuth = getAuth(tlApp);
+const tlDb = getFirestore(tlApp);
+let tlErr = '';
+async function tlPull(user) {
+  try {
+    const snap = await withTimeout(getDoc(doc(tlDb, 'users', user.uid)), 10000);
+    const d = snap.data();
+    tlErr = d ? '' : 'Im Trainingslog-Konto sind noch keine Daten. Bitte im Trainingslog mit genau diesem Konto anmelden.';
+    window.tlSetCloud(d ? { sessions: d.sessions, bodyScans: d.bodyScans, customDays: d.customDays } : null);
+  } catch (e) {
+    console.warn('[Trainingslog] Laden fehlgeschlagen', e);
+    tlErr = 'Laden fehlgeschlagen: ' + ((e && e.message) || e);
+  }
+  renderTlStatus(tlAuth.currentUser);
+}
+function renderTlStatus(user) {
+  const c = $m('tlAuth'); if (!c) return;
+  if (user) {
+    c.innerHTML = `<div class="mono" style="font-size:12px;"><b style="color:#65a30d;">● TRAININGSLOG VERBUNDEN</b><br><span style="color:var(--muted);">${escM(user.email || user.displayName || 'Konto')}</span></div>` +
+      (tlErr ? `<div class="note" style="color:var(--red);">${escM(tlErr)}</div>` : '') +
+      `<div class="btn-group"><button type="button" class="btn btn-outline btn-sm" style="flex:1;" id="tlReloadBtn">NEU LADEN</button><button type="button" class="btn btn-outline btn-sm" id="tlLogoutBtn">TRENNEN</button></div>`;
+    $m('tlReloadBtn').onclick = () => { toast('Lade Trainingslog…'); tlPull(user); };
+    $m('tlLogoutBtn').onclick = () => { signOut(tlAuth); window.tlSetCloud(null); };
+  } else {
+    c.innerHTML = `<button type="button" class="btn btn-outline btn-sm" id="tlLoginBtn">MIT TRAININGSLOG-KONTO VERBINDEN</button>`;
+    $m('tlLoginBtn').onclick = () => window.showDialog('Trainingslog verbinden', 'Melde dich mit derselben Methode an wie im Trainingslog.', [
+      { text: 'Abbrechen' },
+      { text: 'E-Mail', action: () => openEmail('trainingslog') },
+      { text: 'Google', primary: true, action: tlGoogleLogin }
+    ]);
+  }
+}
+async function tlGoogleLogin() {
+  const provider = new GoogleAuthProvider();
+  try { await signInWithPopup(tlAuth, provider); }
+  catch (e) {
+    if (e && (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment')) {
+      try { await signInWithRedirect(tlAuth, provider); } catch (e2) { window.showDialog('Login fehlgeschlagen', authMsg(e2), [{ text: 'OK', primary: true }]); }
+    } else if (!e || (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request')) {
+      window.showDialog('Google-Login fehlgeschlagen', authMsg(e), [{ text: 'OK', primary: true }]);
+    }
+  }
+}
+onAuthStateChanged(tlAuth, user => { tlErr = ''; renderTlStatus(user); if (user) tlPull(user); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && tlAuth.currentUser) tlPull(tlAuth.currentUser); });
 $m('authCancel').onclick = closeEmail;
 $m('authLogin').onclick = () => emailAuth(false);
 $m('authRegister').onclick = () => emailAuth(true);
@@ -1158,7 +1238,7 @@ function refValue(x) {
 }
 
 /* ================= State ================= */
-let profile = Object.assign({ weight: 70, fat: 0, height: 175, age: 25, gender: 'm', goal: 'halten', calOv: null, protOv: null, protPerKg: null, targetWeight: null, targetDate: null, trackSteps: false }, jget('essenlog_profile', {}));
+let profile = Object.assign({ weight: 70, fat: 0, height: 175, age: 25, gender: 'm', goal: 'halten', calOv: null, protOv: null, protPerKg: null, targetWeight: null, targetDate: null, trackSteps: false, muscle: null, tlTrain: true }, jget('essenlog_profile', {}));
 let steps = jget('essenlog_steps', { date: today, count: 0 });
 let stepsLog = jget('essenlog_stepslog', {});
 let weights = jget('essenlog_weights', {});
@@ -1330,14 +1410,16 @@ function goalWarning(T) {
   if (out.length && young) out.push('Im Wachstum ist ein großes Defizit besonders heikel.');
   return out.join(' ');
 }
-function getTargets(stepCount) {
+function getTargets(stepCount, ds) {
   if (profile.trackSteps && !(stepCount > 0)) stepCount = 0;
-  const factor = stepCount >= 10000 ? 1.65 : stepCount >= 7500 ? 1.55 : stepCount >= 5000 ? 1.45 : stepCount == null ? 1.55 : 1.375;
+  const tlOn = tlTrainActive();
+  const factor = stepCount >= 10000 ? 1.65 : stepCount >= 7500 ? 1.55 : stepCount >= 5000 ? 1.45 : stepCount == null ? (tlOn ? 1.375 : 1.55) : 1.375;
   const w = Number(profile.weight) || 0, f = Number(profile.fat) || 0, lbm = w - f;
   const bmr = (f > 0 && lbm > 0)
     ? 370 + 21.6 * lbm
     : (10 * w) + (6.25 * (Number(profile.height) || 0)) - (5 * (Number(profile.age) || 0)) + (profile.gender === 'w' ? -161 : 5);
-  const tdee = Math.round(bmr * factor);
+  const training = tlOn ? tlDay(ds || today) : null;
+  const tdee = Math.round(bmr * factor) + (training ? training.kcal : 0);
   const g = { halten: [1, 1.8], abnehmen: [0.85, 2.2], aufbauen: [1.10, 2.0], zunehmen: [1.15, 1.8], gesund: [1, 1.8] }[profile.goal] || [1, 1.8];
   let cal, plan = null;
   const tw = Number(profile.targetWeight), days = profile.targetDate ? daysUntil(profile.targetDate) : 0;
@@ -1352,12 +1434,143 @@ function getTargets(stepCount) {
   const prot = Number(profile.protOv) > 0 ? Number(profile.protOv) : Math.round(w * protPerKg);
   const fiber = 30, sugarMax = Math.round(cal * 0.10 / 4), satMax = Math.round(cal * 0.10 / 9), saltMax = 6;
   const fatT = Math.round(cal * 0.30 / 9), carbT = Math.max(0, Math.round((cal - prot * 4 - fatT * 9) / 4));
-  return { factor, bmr, tdee, cal, prot, fiber, sugarMax, satMax, saltMax, fatT, carbT, plan };
+  return { factor, bmr, tdee, cal, prot, fiber, sugarMax, satMax, saltMax, fatT, carbT, plan, training };
 }
 const todaySteps = () => {
   const s = (steps.date === today && Number(steps.count) > 0) ? Number(steps.count) : (Number(stepsLog[today]) || 0);
   return s > 0 ? s : null;
 };
+
+/* ================= Trainingslog-Brücke =================
+   Quelle 1: Trainingslog-Daten auf diesem Gerät (gleiche Domain → gleicher localStorage; Android/PC).
+   Quelle 2: Trainingslog-Cloud (Firebase-Projekt trainingslog-102), wenn hier mit demselben Konto verbunden (iPhone).
+   Aus den Scans werden Gewicht, Fettmasse und Muskelmasse übernommen, aus den Trainings die Kalorien. */
+const TL_LABELS = { BR: 'Brust / Rücken', AS: 'Arme / Schultern' };
+let tlCloud = null;
+function tlDs(d) { return /^\d{4}-\d{2}-\d{2}$/.test(String(d)) ? String(d) : dstr(new Date(d)); }
+function tlSource() {
+  if (tlCloud) return tlCloud;
+  const s = jget('trainingslog_sessions', null), b = jget('trainingslog_bodyscans', null);
+  if (Array.isArray(s) || Array.isArray(b)) return { sessions: s || [], bodyScans: b || [], customDays: jget('trainingslog_custom_days', []) || [], src: 'Gerät' };
+  const c = jget('el_tl_cache', null);
+  return c && (Array.isArray(c.sessions) || Array.isArray(c.bodyScans)) ? Object.assign({ src: 'Cloud (gespeichert)' }, c) : null;
+}
+window.tlSetCloud = data => {
+  tlCloud = data ? { sessions: data.sessions || [], bodyScans: data.bodyScans || [], customDays: data.customDays || [], src: 'Cloud' } : null;
+  try { if (data) localStorage.setItem('el_tl_cache', JSON.stringify({ sessions: tlCloud.sessions, bodyScans: tlCloud.bodyScans, customDays: tlCloud.customDays })); else localStorage.removeItem('el_tl_cache'); } catch (e) {}
+  tlSync();
+};
+function tlTrainActive() { const s = tlSource(); return profile.tlTrain !== false && !!s && s.sessions.length > 0; }
+function tlDayLabel(src, key) {
+  const d = (src.customDays || []).find(x => x && x.key === key);
+  const l = d && d.label ? d.label : (TL_LABELS[key] || 'Training');
+  return String(l).toLowerCase().replace(/(^|[\s\/+-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
+}
+/* MET-Werte grob nach Kompendium; minus 1 MET Ruhe, weil der Grundumsatz schon zählt */
+function tlCardioMet(name, min, km) {
+  const n = String(name || '').toLowerCase(), v = min > 0 && km > 0 ? km / (min / 60) : 0;
+  if (/lauf|jogg|run/.test(n)) return v ? (v < 6.5 ? 4.5 : Math.min(14, v)) : 8;
+  if (/rad|ergometer|bike|spinning/.test(n)) return v ? (v < 16 ? 4 : v < 20 ? 6.8 : v < 25 ? 8 : 10) : 6.5;
+  if (/ruder/.test(n)) return 7;
+  if (/stepper|treppe/.test(n)) return 8;
+  if (/seil/.test(n)) return 11;
+  if (/schwimm/.test(n)) return 7;
+  if (/cross|ellip/.test(n)) return 5;
+  if (/geh|walk|wander/.test(n)) return 4;
+  return 6;
+}
+/* Gym: Satz ca. 1 min Arbeit (6 MET), zwischen Sätzen derselben Übung 3,5 min Pause,
+   beim Wechsel zur nächsten Übung nur 1,5 min Pause (Pausen ca. 2 MET). Jeweils minus 1 MET Ruhe. */
+const TL_SET_MIN = 1, TL_REST_MIN = 3.5, TL_SWITCH_MIN = 1.5, TL_SET_MET = 6, TL_REST_MET = 2;
+function tlDay(ds) {
+  const src = tlSource();
+  if (!src) return null;
+  const w = Number(profile.weight) || 75;
+  let sets = 0, cardioMin = 0, kcal = 0, gymMin = 0, measured = true;
+  const labels = [], cardioNames = [];
+  src.sessions.forEach(s => {
+    if (!s || !s.date || tlDs(s.date) !== ds) return;
+    let sSets = 0, sCardio = 0, sEx = 0, sGymKcal = 0, sGymMin = 0;
+    (s.exercises || []).forEach(ex => {
+      let exSets = 0;
+      (ex.sets || []).forEach(st => {
+        if (!st) return;
+        if (st.min !== undefined || st.km !== undefined) {
+          const min = parseFloat(String(st.min).replace(',', '.')) || 0, km = parseFloat(String(st.km).replace(',', '.')) || 0;
+          if (min > 0) { sCardio += min; kcal += (tlCardioMet(ex.name, min, km) - 1) * w * min / 60; if (!cardioNames.includes(ex.name)) cardioNames.push(ex.name); }
+          return;
+        }
+        const reps = (parseFloat(st.reps) || 0) + (parseFloat(st.repsLeft) || 0) + (parseFloat(st.repsRight) || 0);
+        if (reps > 0 || parseFloat(st.weight) > 0) exSets++;
+      });
+      if (exSets) {
+        const work = exSets * TL_SET_MIN, rest = (exSets - 1) * TL_REST_MIN + (sEx > 0 ? TL_SWITCH_MIN : 0);
+        sGymKcal += ((TL_SET_MET - 1) * work + (TL_REST_MET - 1) * rest) * w / 60;
+        sGymMin += work + rest; sSets += exSets; sEx++;
+      }
+    });
+    /* Vom Trainingslog gemessene Dauer (Zeitstempel der Sätze) hat Vorrang vor der Schätzung */
+    if (sSets && Number(s.gymMin) > 0) {
+      const work = sSets * TL_SET_MIN, rest = Math.max(0, Number(s.gymMin) - work);
+      sGymKcal = ((TL_SET_MET - 1) * work + (TL_REST_MET - 1) * rest) * w / 60;
+      sGymMin = Number(s.gymMin);
+      if (!s.gymMeasured) measured = false;
+    } else if (sSets) measured = false;
+    kcal += sGymKcal; gymMin += sGymMin;
+    if (sSets || sCardio) { labels.push(tlDayLabel(src, s.dayType)); sets += sSets; cardioMin += sCardio; }
+  });
+  if (!sets && !cardioMin) return null;
+  return { label: [...new Set(labels)].join(' + '), sets, gymMin: measured ? Math.round(gymMin) : Math.round(gymMin / 5) * 5, gymMeasured: measured, cardioMin: Math.round(cardioMin), cardioNames, kcal: Math.round(kcal / 10) * 10 };
+}
+function tlDayText(tr) {
+  const parts = [];
+  if (tr.sets) parts.push(`${tr.sets} Sätze (${tr.gymMeasured ? '' : 'ca. '}${tr.gymMin} min)`);
+  if (tr.cardioMin) parts.push(`${tr.cardioMin} min Cardio`);
+  return `${tr.label} · ${parts.join(' · ')} · +${tr.kcal} kcal`;
+}
+function tlApplyScans(src) {
+  const scans = (src.bodyScans || []).filter(s => s && s.date && Number(s.weight) > 0)
+    .map(s => ({ ds: tlDs(s.date), w: Number(s.weight), fat: Number(s.fat) > 0 ? Number(s.fat) : (Number(s.fatPct) > 0 ? Number(s.weight) * Number(s.fatPct) / 100 : null), muscle: Number(s.muscle) > 0 ? Number(s.muscle) : null }))
+    .sort((a, b) => a.ds < b.ds ? -1 : a.ds > b.ds ? 1 : 0);
+  if (!scans.length) return null;
+  const last = scans[scans.length - 1];
+  const lastOwn = Object.keys(weights).filter(d => !scans.some(s => s.ds === d)).sort().pop() || '';
+  let changed = false;
+  scans.forEach(s => { if (!(Number(weights[s.ds]) > 0)) { weights[s.ds] = s.w; changed = true; } });
+  const mark = `${last.ds}|${last.w}|${last.fat}|${last.muscle}`;
+  let applied = false;
+  if (localStorage.getItem('el_tl_lastscan') !== mark && last.ds >= lastOwn) {
+    profile.weight = last.w;
+    if (last.fat) profile.fat = Math.round(last.fat * 10) / 10;
+    if (last.muscle) profile.muscle = Math.round(last.muscle * 10) / 10;
+    weights[last.ds] = last.w;
+    jset('essenlog_profile', profile);
+    changed = applied = true;
+    try { localStorage.setItem('el_tl_lastscan', mark); } catch (e) {}
+    $('pWeight').value = profile.weight || ''; $('pFat').value = profile.fat || ''; $('pMuscle').value = profile.muscle || '';
+  }
+  if (changed) jset('essenlog_weights', weights);
+  if (applied) showToast(`Scan vom ${shortDate(last.ds)} übernommen: ${String(last.w).replace('.', ',')} kg`);
+  return last;
+}
+function tlSync() {
+  const src = tlSource(), info = $('tlInfo'), si = $('tlScanInfo');
+  if (!src) {
+    if (info) info.textContent = 'Noch keine Daten aus dem Trainingslog. Öffne das Trainingslog einmal auf diesem Gerät oder verbinde unten dein Konto.';
+    if (si) si.classList.add('hidden');
+    refresh();
+    return;
+  }
+  const last = tlApplyScans(src);
+  const n = src.sessions.filter(s => s).length;
+  if (info) info.innerHTML = `<b>Verbunden</b> (Quelle: ${src.src}) · ${n} Trainings · ${(src.bodyScans || []).length} Scans`;
+  if (si) {
+    si.classList.toggle('hidden', !last);
+    if (last) si.textContent = `Letzter Scan aus dem Trainingslog: ${shortDate(last.ds)}${last.ds.slice(0, 4)} · ${String(last.w).replace('.', ',')} kg` + (last.fat ? ` · Fett ${String(Math.round(last.fat * 10) / 10).replace('.', ',')} kg` : '') + (last.muscle ? ` · Muskeln ${String(Math.round(last.muscle * 10) / 10).replace('.', ',')} kg` : '') + '. Ein neuer Scan überschreibt Gewicht, Fett und Muskeln automatisch.';
+  }
+  refresh();
+  if (!$('tab-history').classList.contains('hidden')) renderHistory();
+}
 
 function dayTotals(meals) {
   const t = { micro: {} };
@@ -1454,6 +1667,10 @@ function calcAll() {
     $('calRemaining').textContent = `${Math.round(rem)} kcal offen · Ø ${Math.round(rem / left)} pro Tag für ${left === 1 ? 'heute' : 'die restlichen ' + left + ' Tage (inkl. heute)'}`;
   } else $('calRemaining').textContent = calOver > 0 ? `${Math.round(calOver)} kcal drüber` : `${Math.round(Tv.cal - t.kcal)} kcal offen`;
   $('calRemaining').style.color = calOver > Tv.cal * 0.05 ? 'var(--red)' : 'var(--muted)';
+  const tlT = $('tlToday');
+  if (tlT) { tlT.classList.toggle('hidden', !(S === 1 && T.training)); if (T.training) tlT.textContent = 'Training heute: ' + tlDayText(T.training); }
+  const tlI = $('tlTargetInfo');
+  if (tlI) { tlI.classList.toggle('hidden', !T.training); if (T.training) tlI.textContent = `Gesamtbedarf heute inkl. Training aus dem Trainingslog: +${T.training.kcal} kcal (${tlDayText(T.training)}).`; }
   $('calRing').setAttribute('stroke-dasharray', `${(calPct * 427.26 / 100).toFixed(1)} 427.26`);
   $('calRing').style.stroke = calOver > Tv.cal * 0.05 ? 'var(--red)' : 'var(--ink)';
 
@@ -1738,7 +1955,9 @@ function saveProfile() {
     protPerKg: ppk && ppk.value ? Number(ppk.value) : null,
     targetWeight: profile.targetWeight || null,
     targetDate: profile.targetDate || null,
-    trackSteps: $('pTrackSteps').value === '1'
+    trackSteps: $('pTrackSteps').value === '1',
+    muscle: Number($('pMuscle').value) > 0 ? Number($('pMuscle').value) : null,
+    tlTrain: $('pTlTrain').value !== '0'
   };
   jset('essenlog_profile', profile);
   refresh();
@@ -2391,6 +2610,8 @@ function renderHistory() {
     if (m) days.push(m[1]);
   }
   Object.keys(stepsLog).forEach(d => { if (Number(stepsLog[d]) > 0 && !days.includes(d)) days.push(d); });
+  const tlSrc = tlTrainActive() ? tlSource() : null;
+  if (tlSrc) tlSrc.sessions.forEach(s => { if (s && s.date) { const d = tlDs(s.date); if (d <= today && !days.includes(d)) days.push(d); } });
   if (!days.includes(today)) days.push(today);
   days.sort().reverse();
 
@@ -2401,9 +2622,9 @@ function renderHistory() {
   days.forEach(ds => {
     const meals = ds === today ? todayMeals : loadMeals(ds);
     const st = Number(stepsLog[ds]) || 0;
-    if (!meals.length && !(st > 0)) return;
+    const T = getTargets(st > 0 ? st : null, ds);
+    if (!meals.length && !(st > 0) && !T.training) return;
     const d = new Date(ds + 'T12:00:00'), t = dayTotals(meals);
-    const T = getTargets(st > 0 ? st : null);
     if (st > 0) { sumS += st; cntS++; }
     if (meals.length) { sumK += t.kcal; sumP += t.prot; cnt++; gapDays++; }
     if (meals.length) microState(t).forEach(r => { if (!r.nodata) { const a = gapAcc[r.x.k] || (gapAcc[r.x.k] = { x: r.x, sum: 0, n: 0 }); a.sum += Math.min(r.pct, 2); a.n++; } });
@@ -2412,10 +2633,11 @@ function renderHistory() {
     const label = ds === today ? 'HEUTE' : ds === yesterdayStr ? 'GESTERN' : d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' }).toUpperCase();
     const kcalColor = t.kcal > T.cal * 1.05 ? 'var(--red)' : (t.kcal >= T.cal * 0.9 ? 'var(--green)' : 'var(--ink)');
     rows += `<div class="hist-day"><div class="dayrow" onclick="toggleDayEdit('${ds}')">
-      <div class="dr-head"><b>${label}</b><span>${meals.length ? '' : 'nur Schritte'}</span></div>
+      <div class="dr-head"><b>${label}</b><span>${meals.length ? '' : st > 0 ? 'nur Schritte' : 'nur Training'}</span></div>
       ${line('Kalorien', t.kcal, T.cal, 'kcal', kcalColor)}
       ${line('Eiweiß', t.prot, T.prot, 'g', 'var(--green)')}
       <div class="dr-line"><span>Schritte</span><div class="bar"><i style="width:${Math.min(100, st / 10000 * 100)}%;background:var(--sky);"></i></div><b>${st > 0 ? st.toLocaleString('de-DE') : '–'}</b></div>
+      ${T.training ? `<div class="note" style="margin-top:2px;">Training: ${esc(tlDayText(T.training))}</div>` : ''}
       </div><div class="hist-edit hidden" id="hist-edit-${ds}"></div></div>`;
   });
   $('histRows').innerHTML = rows || '<div class="note" style="text-align:center;padding:20px 0;">Noch keine Einträge.</div>';
@@ -2868,6 +3090,8 @@ function init() {
   $('pGender').value = profile.gender || 'm';
   $('pGoal').value = profile.goal || 'halten';
   $('pTrackSteps').value = profile.trackSteps ? '1' : '0';
+  $('pMuscle').value = profile.muscle || '';
+  $('pTlTrain').value = profile.tlTrain === false ? '0' : '1';
   $('pCalOv').value = profile.calOv || '';
   $('pProtOv').value = profile.protOv || '';
   if ($('pProtPerKg')) $('pProtPerKg').value = profile.protPerKg || '';
@@ -2879,9 +3103,11 @@ function init() {
   renderBackupInfo();
   try { const m = sessionStorage.getItem('essenlog_importmsg'); if (m) { sessionStorage.removeItem('essenlog_importmsg'); setTimeout(() => showDialog('Backup', m, [{ text: 'OK', primary: true }]), 400); } } catch (e) {}
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden && dstr(new Date()) !== today) location.reload(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && dstr(new Date()) !== today) location.reload(); else if (!document.hidden) tlSync(); });
+window.addEventListener('storage', e => { if (e.key && e.key.startsWith('trainingslog_')) tlSync(); });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
 init();
+tlSync();
 </script>
 </body>
 </html>
