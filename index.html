@@ -218,6 +218,7 @@
   .dayrow .dr-head span{font-family:var(--font-m);font-size:11px;color:var(--muted);}
   .dr-line{display:grid;grid-template-columns:64px 1fr 96px;align-items:center;gap:8px;font-size:12px;}
   .dr-line b{font-family:var(--font-m);font-size:11px;text-align:right;font-weight:600;white-space:nowrap;}
+  .hist-day .dr-line{grid-template-columns:92px 1fr 104px;}
   .dr-line .bar,.dr-line .bar i{height:6px;}
   .hist-day{border-bottom:1px solid var(--track);}
   .hist-day:last-child{border-bottom:0;}
@@ -2741,20 +2742,21 @@ function dayButtons(ds) {
 /* Alle Werte eines Tages (wie die Übersicht, nur für diesen Tag) */
 function dayDetailHtml(ds, meals) {
   const st = Number(stepsLog[ds]) || 0, T = getTargets(st > 0 ? st : null, ds), t = dayTotals(meals);
-  const bar = (l, cur, tgt, u, isMax) => {
-    const over = isMax ? cur > tgt : false;
-    return `<div class="dr-line"><span>${l}</span><div class="bar"><i style="width:${tgt > 0 ? Math.min(100, cur / tgt * 100) : 0}%;background:${over ? 'var(--red)' : 'var(--sky)'};"></i></div><b style="${over ? 'color:var(--red)' : ''}">${fmt(cur)} / ${fmt(tgt)} ${u}</b></div>`;
+  /* overAt: ab welchem Anteil vom Ziel der Balken rot wird (wie auf der Übersicht) */
+  const bar = (l, cur, tgt, u, color, overAt) => {
+    const over = overAt ? cur > tgt * overAt : false;
+    return `<div class="dr-line"><span>${l}</span><div class="bar"><i style="width:${tgt > 0 ? Math.min(100, cur / tgt * 100) : 0}%;background:${over ? 'var(--red)' : color};"></i></div><b style="${over ? 'color:var(--red)' : ''}">${fmt(cur)} / ${fmt(tgt)} ${u}</b></div>`;
   };
-  const kv = (l, v) => `<div class="row mono" style="font-size:12px;justify-content:space-between;padding:2px 0;"><span>${l}</span><b>${v}</b></div>`;
-  let h = '<div class="col" style="gap:4px;padding:8px 0;border-bottom:1px dashed var(--track);margin-bottom:6px;">';
-  h += '<span class="eyebrow">TAGESWERTE</span>';
-  h += bar('Kalorien', t.kcal, T.cal, 'kcal') + bar('Eiweiß', t.prot, T.prot, 'g') + bar('Fett', t.fat, T.fatT, 'g') + bar('Kohlenhydr.', t.carb, T.carbT, 'g') + bar('Ballaststoffe', t.fib, T.fiber, 'g');
-  h += bar('Zucker (max)', t.sugar, T.sugarMax, 'g', true) + bar('Ges. Fetts. (max)', t.satfat, T.satMax, 'g', true) + bar('Salz (max)', t.salt, T.saltMax, 'g', true);
+  const kv = (l, v) => `<div class="dr-line"><span>${l}</span><div></div><b>${v}</b></div>`;
+  /* Kalorien, Eiweiß, Schritte und Training stehen schon oben in der Tageszeile */
+  let h = '<div class="col day-detail" style="gap:4px;padding:8px 0;border-bottom:1px dashed var(--track);margin-bottom:6px;">';
+  h += '<span class="eyebrow">WEITERE TAGESWERTE</span>';
+  h += bar('Fett', t.fat, T.fatT, 'g', 'var(--amber)', 1.15) + bar('Kohlenhydrate', t.carb, T.carbT, 'g', 'var(--sky)', 1.15) + bar('Ballaststoffe', t.fib, T.fiber, 'g', 'var(--green)');
+  h += bar('Zucker', t.sugar, T.sugarMax, 'g', 'var(--violet)', 1) + bar('Ges. Fett', t.satfat, T.satMax, 'g', 'var(--pink)', 1) + bar('Salz', t.salt, T.saltMax, 'g', 'var(--muted)', 1);
   h += kv('Netto-KH', fmt(Math.max(0, t.carb - t.fib)) + ' g');
-  h += '<span class="eyebrow" style="margin-top:6px;">BEDARF & AKTIVITÄT</span>';
-  h += kv('Grundumsatz', Math.round(T.bmr) + ' kcal') + kv('Gesamtbedarf', T.tdee + ' kcal') + kv('Kalorienziel', T.cal + ' kcal');
-  h += kv('Schritte', st > 0 ? st.toLocaleString('de-DE') : '–');
-  if (T.training) h += kv('Training', esc(tlDayText(T.training)));
+  h += '<div class="note">Zucker, gesättigte Fette und Salz sind Obergrenzen.</div>';
+  h += '<span class="eyebrow" style="margin-top:6px;">BEDARF</span>';
+  h += kv('Grundumsatz', Math.round(T.bmr) + ' kcal') + kv('Gesamtbedarf', T.tdee + ' kcal');
   if (Number(weights[ds]) > 0) h += kv('Gewicht', String(weights[ds]).replace('.', ',') + ' kg');
   if (meals.length) {
     const ms = microState(t), groups = { vit: 'VITAMINE', min: 'MINERALSTOFFE', oth: 'OMEGA-3' };
